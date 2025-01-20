@@ -400,3 +400,175 @@ def get_title(yvar):
         return 'Tidal Zone on Chlorophyll α Production'
     elif yvar == 'ng_chlorophyll_per_hundred_cells':
         return 'Tidal Zone on Chlorophyll per Cell'
+    
+def process_abiotic_data(abiotic_data_path, start_date, end_date):
+    """
+    Processes multiple abiotic datasets, filters by date range, extracts relevant columns, and calculates 7-day and daily averages.
+
+    Parameters:
+    abiotic_data_path (str): The directory path where the datasets are stored.
+    start_date (str): The start date in ISO format (e.g., '2022-08-01T00:00:00').
+    end_date (str): The end date in ISO format (e.g., '2023-03-31T00:00:00').
+
+    Returns:
+    dict: A dictionary containing processed data from each dataset.
+    dict: A dictionary containing 7-day averaged data for each dataset.
+    dict: A dictionary containing daily averaged data for each dataset.
+    """
+    results = {}
+    seven_day_averages = {}
+    daily_averages = {}
+
+    # Helper function to load, filter, and clean data
+    def load_and_filter(file_name, date_col, additional_filters=None):
+        data = pd.read_csv(abiotic_data_path + file_name)
+
+        # Remove any 'Unnamed: _' columns
+        data = data.loc[:, ~data.columns.str.contains('^Unnamed')] 
+
+        # Clean column names by replacing spaces, parentheses, etc.
+        data.columns = [col.replace('(', '_').replace(')', '').replace(' ', '_') for col in data.columns]
+
+        data['date_time'] = pd.to_datetime(data[date_col])
+        data = data[(data['date_time'] > start_date) & (data['date_time'] <= end_date)]
+        if additional_filters:
+            for condition in additional_filters:
+                data = data[condition(data)]
+
+        # Remove any columns with 'date', 'time', or 'datetime'
+        data = data[[col for col in data.columns if col not in ['date', 'time', 'datetime']]]
+
+        # Reorder columns to place 'date_time' first
+        cols = ['date_time'] + [col for col in data.columns if col != 'date_time']
+        data = data[cols]
+
+        # Reset index
+        data.reset_index(drop=True, inplace=True)
+
+        return data
+
+    def calculate_seven_day_average(data, base_name):
+        # Use the `start_date` from the outer scope here
+        averaged_data = data.copy()
+        averaged_data.set_index('date_time', inplace=True)
+
+        # Ensure the index is sorted by date_time
+        averaged_data.sort_index(inplace=True)
+
+        # Calculate 7-day rolling averages for all numeric columns
+        rolling_avg = averaged_data.rolling('7D').mean()
+
+        # Resample to keep one row every 7 days (align to start_date)
+        seven_day_avg = rolling_avg.resample('7D', origin=start_date).mean()
+
+        # Reset index to make date_time a column again
+        seven_day_avg.reset_index(inplace=True)
+
+        # Rename columns to indicate 7-day average
+        seven_day_avg.columns = ['date_time'] + [f"{col}_seven_day_average" for col in seven_day_avg.columns if col != 'date_time']
+
+        return seven_day_avg
+
+    def calculate_daily_average(data):
+        # Set 'date_time' as index for daily resampling
+        averaged_data = data.copy()
+        averaged_data.set_index('date_time', inplace=True)
+
+        # Ensure the index is sorted by date_time
+        averaged_data.sort_index(inplace=True)
+
+        # Calculate daily averages for all numeric columns
+        daily_avg = averaged_data.resample('D').mean()
+
+        # Reset index to make date_time a column again
+        daily_avg.reset_index(inplace=True)
+
+        # Rename columns to indicate daily average
+        daily_avg.columns = ['date_time'] + [f"{col}_daily_average" for col in daily_avg.columns if col != 'date_time']
+
+        return daily_avg
+
+    # Process datasets
+    datasets = {
+        'hobo': ('cleaned_rockaway_hobo_logger.csv', 'datetime', None),
+        'star_oddi': ('cleaned_rockaway_star_oddi_salinity_data.csv', 'datetime', [lambda df: df['salinity_ppt'] > 5]),
+        'fort_point_daily': ('fort_point_salinity_daily.csv', 'datetime', None),
+        'fort_point_hourly': ('fort_point_salinity_hourly.csv', 'datetime', None),
+        'precipitation': ('precipitation.csv', 'datetime', None)
+    }
+
+    for name, (file_name, date_col, filters) in datasets.items():
+        data = load_and_filter(file_name, date_col, filters)
+        results[name] = data
+
+        # Calculate and store 7-day averages
+        averaged_data_seven_day = calculate_seven_day_average(data, name)
+        seven_day_averages[f"{name}_seven_day_average"] = averaged_data_seven_day
+
+        # Calculate and store daily averages
+        averaged_data_daily = calculate_daily_average(data)
+        daily_averages[f"{name}_daily_average"] = averaged_data_daily
+
+    # Print the names of resulting DataFrames
+    print("Available datasets:")
+    for name in results.keys():
+        print(f"- {name}")
+
+    print("\nAvailable 7-day average datasets:")
+    for name in seven_day_averages.keys():
+        print(f"- {name}")
+
+    print("\nAvailable daily average datasets:")
+    for name in daily_averages.keys():
+        print(f"- {name}")
+
+    # Now, return all three dictionaries
+    return results, seven_day_averages, daily_averages
+
+site_dict = {'ap': {'name' : 'Aramai Point',
+        'lon' : -122.500725,
+        'lat' : 37.607919,
+        'Location' : 'Pacifica, San Mateo County, CA',
+        'Site Description' : 'Aramai Point was originally named Rockaway Beach but has since been renamed to honor the Native American tribe that lived in the area for thousands of years. This public beach has hiking trails leading to prominent headlands that overshadow a rocky intertidal habitat below. The intertidal zone is very accessible, beginning a few hundred yards from the parking lot. Anemones, sea stars, tunicates, barnacles, and many other inverts are found throughout this site. Aramai Point is heavily trafficed by surfers, fishermen, and families, especially on the weekends.',
+        'Research Conducted' : 'Identifying the impact intertidal positioning has on the symbiotic relationship between Anthopleura sola and their algal photosynthesizers.',
+        'Student Researchers' : 'Jesse Espinoza'}
+             }
+stns = list(site_dict.keys())
+
+lats = []
+lons = []
+for stn in stns:
+    lats.append(site_dict[stn]['lat']) #Filling up the latitude list by looping through our list of stations
+    lons.append(site_dict[stn]['lon']) #Same but for longitude
+
+
+def site_sample_area(site, data, start_time, end_time):
+  '''
+  This function will take your sites coordinates and make the sample area while
+  scooting a bit away from land. Then it will take those coordinates and apply
+  them to a pointer (in this case sst), which has the variable selected and
+  our time range in too.
+
+  To do other pointers, this code can be expanded, or duplicated but for other
+  variables
+
+  site = dictionary site key, an abbreviation in quotation marks. Ex: 'ap'
+  '''
+  site_lon = site_dict[site]['lon']
+  site_lon_min = site_lon - 2 * 0.04
+  site_lon_max = site_lon - 0.04
+
+  site_lat = site_dict[site]['lat']
+  site_lat_min = site_lat - 2 * 0.04
+  site_lat_max = site_lat - 0.04
+
+  print('lon:', site_lon_min, site_lon_max) #uncomment if you want to see the coordinates per your site
+  print('lat:', site_lat_min, site_lat_max)
+
+  your_sst =data['analysed_sst'].sel(
+                    latitude=slice(site_lat_min, site_lat_max),
+                    longitude=slice(site_lon_min, site_lon_max),
+                    time=slice(start_time, end_time)
+                    )
+
+  return your_sst
