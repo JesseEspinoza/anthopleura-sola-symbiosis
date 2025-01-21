@@ -116,81 +116,6 @@ def batch_bar(your_data, yvar, zone):
 
     plt.show()
 
-def batch_bar_overlay(your_data, yvar):
-    labels = ['Aug 27, 2022', 'Sept 6, 2022', 'Sept 23, 2022', 'Oct 10, 2022',
-              'Oct 27, 2022', 'Nov 08, 2022', 'Nov 23, 2022', 'Dec 6, 2022',
-              'Jan 06, 2023', 'Jan 23, 2023', 'Feb 6, 2023', 'Feb 18, 2023',
-              'Mar 17, 2023'
-              ]
-    batch_sizes = range(4, 17)
-
-    batches = []
-    means = []
-    stds = []
-    sems = []
-
-    selected_zones = ['low', 'medium', 'high']
-
-    for zone in selected_zones:
-        selected_data = your_data[your_data['intertidal_zone'] == zone]
-
-        for size in batch_sizes:
-            batch = group_data(selected_data, size)
-            batch = pull_data(batch, yvar)
-            batches.append(batch)
-            means.append(np.mean(batch))
-            stds.append(np.std(batch))
-            sems.append(sem(batch))
-
-    x_pos = np.arange(len(labels))
-    num_zones = len(selected_zones)
-    width = 0.75 / num_zones
-    colors = ['orange', 'wheat', 'red'][:num_zones]
-
-    fig, ax = plt.subplots(figsize=(27, 10))
-    ax.set_facecolor("white")
-
-    handles = []
-    for i, zone in enumerate(selected_zones):
-        start = i * width - (num_zones - 1) * width / 2
-        CTEs = means[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
-        SEMs = sems[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
-        error = stds[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
-        bar = ax.bar(x_pos + start, CTEs, width=width, color=colors[i], zorder=2)
-        handles.append(bar)
-        ax.errorbar(x_pos + start, CTEs, yerr=SEMs, fmt='o', color='black', capsize=4, elinewidth=1)
-
-    ax.set_xlabel('Date', fontsize=20, color='black')
-    ax.xaxis.set_label_coords(0.5, -.134)
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels(labels, fontsize=15, rotation=28, color='black')
-    ax.tick_params(axis='y', colors='black')
-    plt.yticks(fontsize=17)
-
-    if yvar == 'num_cells_per_ug_protein':
-        ax.set_ylabel('Cells/ug Animal Protein', fontsize=33)
-        ax.set_title('Sharp Algal Density Reduction in November', fontsize=49)
-
-    if yvar == 'ng_chlorophyll_per_ug_protein':
-        ax.set_ylabel('ng Chlorophyll per Animal Protein', fontsize=33)
-        ax.set_title('Gradual Chlorophyll α Reduction Following Seasonal Changes', fontsize=49)
-
-    if yvar == 'ng_chlorophyll_per_hundred_cells':
-        ax.set_ylabel('ng Chlorophyll per 100 Cells', fontsize=25)
-
-    n_value = len(your_data[your_data[yvar].notnull()])
-
-    legend_labels = [f'Intertidal zone: {zone} (n={len(your_data[your_data["intertidal_zone"]==zone])})' for zone in selected_zones]
-
-    ax.legend(handles, legend_labels, loc='upper right', fontsize=20)
-
-
-
-    ax.grid(axis='y', color='black', linestyle='--', linewidth=0.5)
-
-
-    plt.show()
-
 def intertidal_box_plot(your_data, yvar):
     intertidal_zones = ['low', 'medium', 'high']
     data = []
@@ -277,4 +202,117 @@ def abiotic_plot(plot_type, data_dict, title, xlabel, ylabel, xlim, ylim=None, s
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
+    plt.show()
+
+def batch_box_plot(your_data, yvar, zone):
+    batch_sizes = range(4, 17)
+
+    valid_batch_sizes = []  # Keep track of valid batch sizes
+    batch_dates = []  # Store the collection dates of batches
+
+    if zone:
+        selected_data = your_data[your_data['intertidal_zone'] == zone]
+    else:
+        selected_data = your_data
+
+    fig, ax = plt.subplots(figsize=(27, 10))
+    ax.set_facecolor("white")
+
+    box_data = []  # Store boxplot data for each batch size
+
+    for size in batch_sizes:
+        batch = group_data(selected_data, size)
+        if batch.empty:
+            print(f"No data found for batch size {size}, skipping...")
+            continue  # Skip this batch size and move to the next
+        batch_data = pull_data(batch, yvar)
+        box_data.append(batch_data)
+        valid_batch_sizes.append(size)  # Store valid batch size
+        batch_dates.append(batch['date_of_collection'].iloc[0])  # Store collection date
+
+    # Create individual box plots for each batch size
+    for i, data in enumerate(box_data):
+        ax.boxplot(data, positions=[i], patch_artist=True, showfliers=False, widths = 0.5, boxprops=dict(facecolor="goldenrod"), medianprops={'color': 'black'})
+
+    ax.set_xlabel('Collection Date', fontsize=25, color='black', labelpad=15)
+    ax.set_ylabel('Algal Cells per ug Protein', fontsize=25, color='black', labelpad=13)
+    ax.set_xticks(np.arange(len(box_data)))
+    ax.set_xticklabels(batch_dates, fontsize=17, rotation=22, ha="right", color='black')
+    ax.tick_params(axis='y', colors='black')
+    plt.yticks(fontsize=17)
+
+    plt.show()
+
+
+def batch_bar_overlay(your_data, yvar):
+    labels = ['2022-08-27', '2022-09-06', '2022-09-23', '2022-10-10',
+                '2022-10-27', '2022-11-08', '2022-11-23', '2022-12-06',
+                '2023-01-06', '2023-01-23', '2023-02-06', '2023-02-18',
+                '2023-03-17'
+                ]
+    batch_sizes = range(4, 17)
+
+    batches = []
+    means = []
+    stds = []
+    sems = []
+
+    selected_zones = ['low', 'medium', 'high']
+
+    for zone in selected_zones:
+        selected_data = your_data[your_data['intertidal_zone'] == zone]
+
+        for size in batch_sizes:
+            batch = group_data(selected_data, size)
+            batch = pull_data(batch, yvar)
+            batches.append(batch)
+            means.append(np.mean(batch))
+            stds.append(np.std(batch))
+            sems.append(sem(batch))
+
+    x_pos = np.arange(len(labels))
+    num_zones = len(selected_zones)
+    width = 0.75 / num_zones
+    colors = ['orange', 'wheat', 'red'][:num_zones]
+
+    fig, ax = plt.subplots(figsize=(27, 10))
+    ax.set_facecolor("white")
+
+    handles = []
+    for i, zone in enumerate(selected_zones):
+        start = i * width - (num_zones - 1) * width / 2
+        CTEs = means[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
+        SEMs = sems[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
+        error = stds[i * len(batch_sizes): (i + 1) * len(batch_sizes)]
+        bar = ax.bar(x_pos + start, CTEs, width=width, color=colors[i], zorder=2)
+        handles.append(bar)
+        ax.errorbar(x_pos + start, CTEs, yerr=SEMs, fmt='o', color='black', capsize=4, elinewidth=1)
+
+    ax.set_xlabel('Date', fontsize=20, color='black')
+    ax.xaxis.set_label_coords(0.5, -.134)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels, fontsize=15, rotation=28, color='black')
+    ax.tick_params(axis='y', colors='black')
+    plt.yticks(fontsize=17)
+
+    if yvar == 'num_cells_per_ug_protein':
+        ax.set_ylabel('Cells/ug Animal Protein', fontsize=33)
+        ax.set_title('Sharp Algal Density Reduction in November', fontsize=49)
+
+    if yvar == 'ng_chlorophyll_per_ug_protein':
+        ax.set_ylabel('ng Chlorophyll per Animal Protein', fontsize=33)
+        ax.set_title('Gradual Chlorophyll α Reduction Following Seasonal Changes', fontsize=49)
+
+    if yvar == 'ng_chlorophyll_per_hundred_cells':
+        ax.set_ylabel('ng Chlorophyll per 100 Cells', fontsize=25)
+
+    n_value = len(your_data[your_data[yvar].notnull()])
+
+    legend_labels = [f'Intertidal zone: {zone} (n={len(your_data[your_data["intertidal_zone"]==zone])})' for zone in selected_zones]
+
+    ax.legend(handles, legend_labels, loc='upper right', fontsize=20)
+
+    ax.grid(axis='y', color='black', linestyle='--', linewidth=0.5)
+
+
     plt.show()
