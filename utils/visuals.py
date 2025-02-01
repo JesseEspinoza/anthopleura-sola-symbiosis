@@ -116,8 +116,8 @@ def batch_bar(your_data, yvar, zone):
 
     plt.show()
 
-def intertidal_box_plot(your_data, yvar):
-    intertidal_zones = ['low', 'medium', 'high']
+def intertidal_box_plot(your_data, yvar, save_path=None):
+    intertidal_zones = ['low', 'middle', 'high']
     data = []
     sample_sizes = []  # List to store sample sizes for each zone
 
@@ -135,7 +135,15 @@ def intertidal_box_plot(your_data, yvar):
     ax.boxplot(data, labels=labels, showmeans=True, meanprops={"marker":"o", "markerfacecolor":"black"})
     ax.set_xlabel('Tidal Zone', fontsize=20, color='black')
     ax.xaxis.set_label_coords(0.5, -.15)
-    ax.set_ylabel(get_y_label(yvar), fontsize=20, color='black')
+
+    # Get y-label and format it to break lines after every 3 words
+    y_label = get_y_label(yvar)
+    words = y_label.split()
+    if len(words) > 3:
+        y_label = "\n".join([" ".join(words[i:i+3]) for i in range(0, len(words), 3)])
+
+    ax.set_ylabel(y_label, fontsize=20, color='black')
+
     ax.set_title(get_title(yvar), fontsize=20)
     ax.set_xticklabels(labels, fontsize=17, color='black')
     ax.tick_params(axis='y', colors='black')
@@ -143,7 +151,12 @@ def intertidal_box_plot(your_data, yvar):
 
     # Adding the sample size legend to the top right corner
     legend_text = "\n".join([f"{zone}: n={size}" for zone, size in zip(intertidal_zones, sample_sizes)])
-    text_box = ax.text(0.95, 0.95, legend_text, transform=ax.transAxes, fontsize=12, va='top', ha='right', color='black', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'))
+    ax.text(0.95, 0.95, legend_text, transform=ax.transAxes, fontsize=12, va='top', ha='right', 
+            color='black', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3'))
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Plot saved to {save_path}")
 
     plt.show()
 
@@ -257,7 +270,7 @@ def batch_bar_overlay(your_data, yvar):
     stds = []
     sems = []
 
-    selected_zones = ['low', 'medium', 'high']
+    selected_zones = ['low', 'middle', 'high']
 
     for zone in selected_zones:
         selected_data = your_data[your_data['intertidal_zone'] == zone]
