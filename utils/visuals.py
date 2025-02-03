@@ -46,7 +46,7 @@ import sys
 
 from utils.functions import group_data, pull_data, get_y_label, get_title
 
-def batch_bar(your_data, yvar, zone):
+def batch_bar(your_data, yvar, zone, save_path=None):
     labels = ['Aug 27, 2022', 'Sept 6, 2022', 'Sept 23, 2022', 'Oct 10, 2022',
               'Oct 27, 2022', 'Nov 08, 2022', 'Nov 23, 2022', 'Dec 6, 2022',
               'Jan 06, 2023', 'Jan 23, 2023', 'Feb 6, 2023', 'Feb 18, 2023',
@@ -90,11 +90,11 @@ def batch_bar(your_data, yvar, zone):
     plt.yticks(fontsize=17)
 
     if yvar == 'num_cells_per_ug_protein':
-        ax.set_ylabel('Cells/ug Animal Protein', fontsize=33)
+        ax.set_ylabel('Algal Cells/ug Animal Protein', fontsize=33)
         ax.set_title('Average Population Algal Density over Time', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_ug_protein':
-        ax.set_ylabel('ng Chlorophyll per Animal Protein', fontsize=33)
+        ax.set_ylabel('ng Chl α/ug Animal Protein', fontsize=33)
         ax.set_title('Average Population Chlorophyll α over Time', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_hundred_cells':
@@ -114,9 +114,13 @@ def batch_bar(your_data, yvar, zone):
             print(f'Kruskal testing batch_{batch_sizes[i]} and batch_{batch_sizes[j]}:', (stats.kruskal(batches[i], batches[j])))
     '''
 
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Plot saved to {save_path}")    
+
     plt.show()
 
-def intertidal_box_plot(your_data, yvar, save_path=None):
+def intertidal_box_plot(your_data, yvar, yaxis, save_path=None):
     intertidal_zones = ['low', 'middle', 'high']
     data = []
     sample_sizes = []  # List to store sample sizes for each zone
@@ -132,20 +136,24 @@ def intertidal_box_plot(your_data, yvar, save_path=None):
 
     fig, ax = plt.subplots()
     ax.set_facecolor("white")
-    ax.boxplot(data, labels=labels, showmeans=True, meanprops={"marker":"o", "markerfacecolor":"black"})
-    ax.set_xlabel('Tidal Zone', fontsize=20, color='black')
+
+    box = ax.boxplot(
+        data, labels=labels, showmeans=True,
+        meanprops={"marker": "o", "markerfacecolor": "black"},
+        medianprops={"color": "black", "linewidth": 1},  # Make median line black
+        patch_artist=True)
+
+    # Set box colors to white
+    for b in box['boxes']:
+        b.set(facecolor='white')
+
+    ax.set_xlabel('Tidal Zone', fontsize=15, color='black')
     ax.xaxis.set_label_coords(0.5, -.15)
 
-    # Get y-label and format it to break lines after every 3 words
-    y_label = get_y_label(yvar)
-    words = y_label.split()
-    if len(words) > 3:
-        y_label = "\n".join([" ".join(words[i:i+3]) for i in range(0, len(words), 3)])
-
-    ax.set_ylabel(y_label, fontsize=20, color='black')
+    ax.set_ylabel(yaxis, fontsize=15, color='black')
 
     ax.set_title(get_title(yvar), fontsize=20)
-    ax.set_xticklabels(labels, fontsize=17, color='black')
+    ax.set_xticklabels(labels, fontsize=13, color='black')
     ax.tick_params(axis='y', colors='black')
     ax.grid(axis='y', color='black', linestyle='--', linewidth=0.5)
 
@@ -217,7 +225,7 @@ def abiotic_plot(plot_type, data_dict, title, xlabel, ylabel, xlim, ylim=None, s
     
     plt.show()
 
-def batch_box_plot(your_data, yvar, zone):
+def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None):
     batch_sizes = range(4, 17)
 
     valid_batch_sizes = []  # Keep track of valid batch sizes
@@ -248,16 +256,20 @@ def batch_box_plot(your_data, yvar, zone):
         ax.boxplot(data, positions=[i], patch_artist=True, showfliers=False, widths = 0.5, boxprops=dict(facecolor="goldenrod"), medianprops={'color': 'black'})
 
     ax.set_xlabel('Collection Date', fontsize=25, color='black', labelpad=15)
-    ax.set_ylabel('Algal Cells per ug Protein', fontsize=25, color='black', labelpad=13)
+    ax.set_ylabel(yaxis, fontsize=25, color='black', labelpad=15)
     ax.set_xticks(np.arange(len(box_data)))
     ax.set_xticklabels(batch_dates, fontsize=17, rotation=22, ha="right", color='black')
     ax.tick_params(axis='y', colors='black')
     plt.yticks(fontsize=17)
 
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Plot saved to {save_path}")
+
     plt.show()
 
 
-def batch_bar_overlay(your_data, yvar):
+def batch_bar_overlay(your_data, yvar, save_path=None):
     labels = ['2022-08-27', '2022-09-06', '2022-09-23', '2022-10-10',
                 '2022-10-27', '2022-11-08', '2022-11-23', '2022-12-06',
                 '2023-01-06', '2023-01-23', '2023-02-06', '2023-02-18',
@@ -309,15 +321,15 @@ def batch_bar_overlay(your_data, yvar):
     plt.yticks(fontsize=17)
 
     if yvar == 'num_cells_per_ug_protein':
-        ax.set_ylabel('Cells/ug Animal Protein', fontsize=33)
+        ax.set_ylabel('Algal Cells/ug Animal Protein', fontsize=33)
         ax.set_title('Sharp Algal Density Reduction in November', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_ug_protein':
-        ax.set_ylabel('ng Chlorophyll per Animal Protein', fontsize=33)
+        ax.set_ylabel('ng Chl α/ug Animal Protein', fontsize=33)
         ax.set_title('Gradual Chlorophyll α Reduction Following Seasonal Changes', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_hundred_cells':
-        ax.set_ylabel('ng Chlorophyll per 100 Cells', fontsize=25)
+        ax.set_ylabel('ng Chl α/100 Algae Cells', fontsize=25)
 
     n_value = len(your_data[your_data[yvar].notnull()])
 
@@ -327,5 +339,8 @@ def batch_bar_overlay(your_data, yvar):
 
     ax.grid(axis='y', color='black', linestyle='--', linewidth=0.5)
 
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        print(f"Plot saved to {save_path}")
 
     plt.show()
