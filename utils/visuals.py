@@ -46,7 +46,7 @@ import sys
 
 from utils.functions import group_data, pull_data, get_y_label, get_title
 
-def batch_bar(your_data, yvar, zone, save_path=None):
+def batch_bar(your_data, yvar, zone, bar_color='mediumseagreen', save_path=None):
     labels = ['Aug 27, 2022', 'Sept 6, 2022', 'Sept 23, 2022', 'Oct 10, 2022',
               'Oct 27, 2022', 'Nov 08, 2022', 'Nov 23, 2022', 'Dec 6, 2022',
               'Jan 06, 2023', 'Jan 23, 2023', 'Feb 6, 2023', 'Feb 18, 2023',
@@ -59,11 +59,7 @@ def batch_bar(your_data, yvar, zone, save_path=None):
     stds = []
     sems = []
 
-    if zone:
-        selected_data = your_data[your_data['intertidal_zone'] == zone]
-    else:
-        selected_data = your_data
-
+    selected_data = your_data[your_data['intertidal_zone'] == zone] if zone else your_data
 
     for size in batch_sizes:
         batch = group_data(selected_data, size)
@@ -80,8 +76,9 @@ def batch_bar(your_data, yvar, zone, save_path=None):
 
     fig, ax = plt.subplots(figsize=(27, 10))
     ax.set_facecolor("white")
-    ax.bar(x_pos, CTEs, width=0.75, color='mediumseagreen', zorder=2)
+    ax.bar(x_pos, CTEs, width=0.75, color=bar_color, zorder=2)  # Dynamically set bar color
     plt.errorbar(x_pos, CTEs, yerr=SEMs, fmt='o', color='black')
+
     ax.set_xlabel('Date', fontsize=20, color='black')
     ax.xaxis.set_label_coords(0.5, -.134)
     ax.set_xticks(x_pos)
@@ -93,26 +90,17 @@ def batch_bar(your_data, yvar, zone, save_path=None):
         ax.set_ylabel('Algal Cells/ug Animal Protein', fontsize=33)
         ax.set_title('Average Population Algal Density over Time', fontsize=49)
 
-    if yvar == 'ng_chlorophyll_per_ug_protein':
+    elif yvar == 'ng_chlorophyll_per_ug_protein':
         ax.set_ylabel('ng Chl α/ug Animal Protein', fontsize=33)
         ax.set_title('Average Population Chlorophyll α over Time', fontsize=49)
 
-    if yvar == 'ng_chlorophyll_per_hundred_cells':
+    elif yvar == 'ng_chlorophyll_per_hundred_cells':
         ax.set_ylabel('ng Chlorophyll per 100 Cells', fontsize=25)
 
-    if zone:
-        legend_label = f'Intertidal zone: {zone}'
-    else:
-        legend_label = 'all intertidal zones'
+    legend_label = f'Intertidal zone: {zone}' if zone else 'All intertidal zones'
     ax.legend([legend_label], loc='upper right', fontsize=30)
 
     ax.grid(axis='y', color='black', linestyle='--', linewidth=0.5)
-
-    '''
-    for i in range(len(batches)):
-        for j in range(i + 1, len(batches)):
-            print(f'Kruskal testing batch_{batch_sizes[i]} and batch_{batch_sizes[j]}:', (stats.kruskal(batches[i], batches[j])))
-    '''
 
     if save_path:
         plt.savefig(save_path, bbox_inches='tight', dpi=300)
@@ -225,16 +213,13 @@ def abiotic_plot(plot_type, data_dict, title, xlabel, ylabel, xlim, ylim=None, s
     
     plt.show()
 
-def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None):
+def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None, save_format='png', box_colors=None):
     batch_sizes = range(4, 17)
 
     valid_batch_sizes = []  # Keep track of valid batch sizes
     batch_dates = []  # Store the collection dates of batches
 
-    if zone:
-        selected_data = your_data[your_data['intertidal_zone'] == zone]
-    else:
-        selected_data = your_data
+    selected_data = your_data[your_data['intertidal_zone'] == zone] if zone else your_data
 
     fig, ax = plt.subplots(figsize=(27, 10))
     ax.set_facecolor("white")
@@ -251,9 +236,19 @@ def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None):
         valid_batch_sizes.append(size)  # Store valid batch size
         batch_dates.append(batch['date_of_collection'].iloc[0])  # Store collection date
 
-    # Create individual box plots for each batch size
-    for i, data in enumerate(box_data):
-        ax.boxplot(data, positions=[i], patch_artist=True, showfliers=False, widths = 0.5, boxprops=dict(facecolor="goldenrod"), medianprops={'color': 'black'})
+    # Ensure single color is used for all boxes if not provided
+    if box_colors is None:
+        box_colors = ["#4eb3d3"] * len(box_data)  # Default to a single color (light blue)
+    elif isinstance(box_colors, str):  # If a single color string is provided
+        box_colors = [box_colors] * len(box_data)  # Apply this color to all boxes
+    elif len(box_colors) < len(box_data):  # If there are not enough colors
+        print("Warning: Not enough colors provided. Using default for missing values.")
+        box_colors.extend(["lightblue"] * (len(box_data) - len(box_colors)))  # Fill missing colors
+
+    # Create individual box plots for each batch size with the same color
+    for i, (data, color) in enumerate(zip(box_data, box_colors)):
+        ax.boxplot(data, positions=[i], patch_artist=True, showfliers=False, widths=0.5, 
+                   boxprops=dict(facecolor=color), medianprops={'color': 'black'})
 
     ax.set_xlabel('Collection Date', fontsize=25, color='black', labelpad=15)
     ax.set_ylabel(yaxis, fontsize=25, color='black', labelpad=15)
@@ -262,19 +257,22 @@ def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None):
     ax.tick_params(axis='y', colors='black')
     plt.yticks(fontsize=17)
 
+    # Save plot
     if save_path:
-        plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        print(f"Plot saved to {save_path}")
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure folder exists
+        full_save_path = f"{save_path}.{save_format}"  # Append file format
+        plt.savefig(full_save_path, bbox_inches='tight', dpi=300)
+        print(f"Plot saved to {full_save_path}")    
 
     plt.show()
 
 
-def batch_bar_overlay(your_data, yvar, save_path=None):
+def batch_bar_overlay(your_data, yvar, save_path=None, colors=['orange', 'wheat', 'red']):
     labels = ['2022-08-27', '2022-09-06', '2022-09-23', '2022-10-10',
-                '2022-10-27', '2022-11-08', '2022-11-23', '2022-12-06',
-                '2023-01-06', '2023-01-23', '2023-02-06', '2023-02-18',
-                '2023-03-17'
-                ]
+              '2022-10-27', '2022-11-08', '2022-11-23', '2022-12-06',
+              '2023-01-06', '2023-01-23', '2023-02-06', '2023-02-18',
+              '2023-03-17'
+              ]
     batch_sizes = range(4, 17)
 
     batches = []
@@ -298,7 +296,6 @@ def batch_bar_overlay(your_data, yvar, save_path=None):
     x_pos = np.arange(len(labels))
     num_zones = len(selected_zones)
     width = 0.75 / num_zones
-    colors = ['orange', 'wheat', 'red'][:num_zones]
 
     fig, ax = plt.subplots(figsize=(27, 10))
     ax.set_facecolor("white")
