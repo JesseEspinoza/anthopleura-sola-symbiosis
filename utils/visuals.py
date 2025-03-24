@@ -213,7 +213,7 @@ def abiotic_plot(plot_type, data_dict, title, xlabel, ylabel, xlim, ylim=None, s
     
     plt.show()
 
-def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None, save_format='png', box_colors=None):
+def batch_box_plot(your_data, yvar, yaxis, zone, title, save_path=None, save_format='png', box_colors=None):
     batch_sizes = range(4, 17)
 
     valid_batch_sizes = []  # Keep track of valid batch sizes
@@ -251,11 +251,12 @@ def batch_box_plot(your_data, yvar, yaxis, zone, save_path=None, save_format='pn
                    boxprops=dict(facecolor=color), medianprops={'color': 'black'})
 
     ax.set_xlabel('Collection Date', fontsize=25, color='black', labelpad=15)
-    ax.set_ylabel(yaxis, fontsize=25, color='black', labelpad=15)
+    ax.set_ylabel(yaxis, fontsize=33, color='black', labelpad=15)
     ax.set_xticks(np.arange(len(box_data)))
     ax.set_xticklabels(batch_dates, fontsize=17, rotation=22, ha="right", color='black')
     ax.tick_params(axis='y', colors='black')
     plt.yticks(fontsize=17)
+    ax.set_title(title, fontsize=49, pad=10)
 
     # Save plot
     if save_path:
@@ -319,11 +320,11 @@ def batch_bar_overlay(your_data, yvar, save_path=None, colors=['orange', 'wheat'
 
     if yvar == 'num_cells_per_ug_protein':
         ax.set_ylabel('Algal Cells/ug Animal Protein', fontsize=33)
-        ax.set_title('Sharp Algal Density Reduction in November', fontsize=49)
+        ax.set_title('Algal Density Reduction Across Tidal Zones', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_ug_protein':
-        ax.set_ylabel('ng Chl α/ug Animal Protein', fontsize=33)
-        ax.set_title('Gradual Chlorophyll α Reduction Following Seasonal Changes', fontsize=49)
+        ax.set_ylabel('average salinity one', fontsize=33)
+        ax.set_title('Gradual Chlorophyll α Reduction Across Tidal Zones', fontsize=49)
 
     if yvar == 'ng_chlorophyll_per_hundred_cells':
         ax.set_ylabel('ng Chl α/100 Algae Cells', fontsize=25)
