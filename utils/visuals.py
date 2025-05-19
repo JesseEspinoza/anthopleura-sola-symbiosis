@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 import warnings
 import statsmodels.api as sm
 import seaborn as sns
+import matplotlib.pyplot as plt
+from PIL import Image
+
 
 warnings.filterwarnings("ignore")
 import time
@@ -502,3 +505,51 @@ def regression(your_data, xvar, yvar, title, color="Blue", save_path=False):
     print(model.summary())
 
     return model
+
+
+def export_plos_tiff(
+    input_path, output_path=None, dpi=(300, 300), max_width_px=2250, max_height_px=2625
+):
+    img = Image.open(input_path)
+
+    # Convert to RGB if needed
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    # Original size
+    orig_width, orig_height = img.size
+    print(f"Original size: {orig_width} x {orig_height} px")
+
+    # Compute resize ratio (scale down if necessary)
+    width_ratio = max_width_px / orig_width
+    height_ratio = max_height_px / orig_height
+    resize_ratio = min(1.0, width_ratio, height_ratio)
+
+    # Resize if image is too big
+    if resize_ratio < 1.0:
+        new_size = (int(orig_width * resize_ratio), int(orig_height * resize_ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+        print(f"Resized to: {new_size[0]} x {new_size[1]} px")
+    else:
+        print("Image is within allowed dimensions; no resize needed.")
+
+    # Save to TIFF
+    if output_path is None:
+        output_path = input_path.rsplit(".", 1)[0] + "_plos.tiff"
+
+    img.save(output_path, format="TIFF", dpi=dpi, compression="tiff_lzw")
+    print(f"Saved PLOS-compliant TIFF to: {output_path}")
+
+
+def inspect_image(path):
+    with Image.open(path) as img:
+        print(f"Mode: {img.mode}")
+        print(f"Size: {img.size} pixels")
+        print(f"Info: {img.info}")
+
+
+def show_tiff(path):
+    img = Image.open(path)
+    plt.imshow(img)
+    plt.axis("off")  # Hide axes
+    plt.show()
