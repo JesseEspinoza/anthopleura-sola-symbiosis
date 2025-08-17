@@ -439,24 +439,27 @@ def batch_bar_overlay(
     plt.show()
 
 
-def regression(your_data, xvar, yvar, title, color="Blue", save_path=False):
-
+def regression(your_data, xvar, yvar, title, color="Blue", save_path=None, ax=None):
     your_data = your_data[[xvar, yvar]].dropna()
 
-    # Convert to float if needed
-    if your_data[xvar].dtype != np.float64:
-        your_data[xvar] = your_data[xvar].astype(np.float64)
-    if your_data[yvar].dtype != np.float64:
-        your_data[yvar] = your_data[yvar].astype(np.float64)
+    # Convert to float
+    your_data[xvar] = your_data[xvar].astype(float)
+    your_data[yvar] = your_data[yvar].astype(float)
 
     # Fit model with statsmodels
     X = sm.add_constant(your_data[xvar])
     y = your_data[yvar]
     model = sm.OLS(y, X).fit()
 
-    # Calculate Durbin-Watson statistic manually
+    # Durbin-Watson
     residuals = model.resid
     dw = sm.stats.durbin_watson(residuals)
+
+    # Create axis if none passed
+    created_fig = False
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        created_fig = True
 
     # Plot with seaborn
     sns.regplot(
@@ -465,45 +468,45 @@ def regression(your_data, xvar, yvar, title, color="Blue", save_path=False):
         data=your_data,
         color=color,
         line_kws={"color": color},
+        ax=ax,
     )
 
-    plt.title(title, fontsize=15)
+    ax.set_title(title, fontsize=15)
 
     if xvar == "temp_c_seven_day_average":
-        plt.xlabel("Seven Day Avg. Temperature (c)", fontsize=12)
+        ax.set_xlabel("Seven Day Avg. Temperature (°C)", fontsize=12)
     else:
-        plt.xlabel("Seven Day Avg. Salinity (ppt)", fontsize=12)
+        ax.set_xlabel("Seven Day Avg. Salinity (ppt)", fontsize=12)
 
     if yvar == "avg_num_cells_per_ug_protein":
-        plt.ylabel("Avg. Algal Cells/ug Animal Protein \n per Collection", fontsize=12)
+        ax.set_ylabel("Avg. Algal Cells/µg Animal Protein\nper Collection", fontsize=12)
     else:
-        plt.ylabel("Avg. ng Chl α/ug Animal Protein \n per Collection", fontsize=12)
+        ax.set_ylabel("Avg. ng Chl α/µg Animal Protein\nper Collection", fontsize=12)
 
-    # Extract stats
+    # Add stats box
     r2 = model.rsquared
-    p_val = model.pvalues[1]  # Coefficient p-value (not intercept)
-    se = model.bse[1]  # Standard error for coefficient
-    # Add stats box to plot
+    p_val = model.pvalues[1]
+    se = model.bse[1]
     stats_text = f"$R^2$: {r2:.3f}\n$p$: {p_val:.3f}\nSE: {se:.3f}\nDW: {dw:.3f}"
-    plt.text(
+    ax.text(
         0.05,
         0.95,
         stats_text,
-        transform=plt.gca().transAxes,
+        transform=ax.transAxes,
         fontsize=10,
         verticalalignment="top",
         bbox=dict(boxstyle="round", facecolor="white", alpha=0.7),
     )
 
-    # Save figure if path is provided
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    # If standalone: save/show here
+    if created_fig:
+        if save_path:
+            fig.savefig(save_path, dpi=300, bbox_inches="tight")
+            plt.close(fig)
+        else:
+            plt.show()
 
-    plt.show()
-
-    # Print statsmodels summary
     print(model.summary())
-
     return model
 
 
