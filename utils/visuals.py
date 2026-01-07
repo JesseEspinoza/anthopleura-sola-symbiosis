@@ -11,6 +11,15 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from PIL import Image
 
+from pathlib import Path
+
+from PIL import Image
+import matplotlib.pyplot as plt
+
+from typing import Optional, Sequence, Union, Tuple
+
+PathLike = Union[str, Path]
+
 
 warnings.filterwarnings("ignore")
 import time
@@ -54,7 +63,7 @@ import sys
 
 # import msfunctions
 
-from utils.functions import group_data, pull_data, get_y_label, get_title
+from utils.functions import group_data, pull_data, get_y_label
 
 
 def batch_bar(your_data, yvar, zone, bar_color="mediumseagreen", save_path=None):
@@ -134,17 +143,72 @@ def batch_bar(your_data, yvar, zone, bar_color="mediumseagreen", save_path=None)
     plt.show()
 
 
-def intertidal_box_plot(your_data, yvar, yaxis, save_path=None):
+from typing import Optional, Union
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+PathLike = Union[str, Path]
+
+
+def intertidal_box_plot(
+    your_data: pd.DataFrame,
+    yvar: str,
+    yaxis: str,
+    title: Optional[str] = None,
+    save_path: Optional[PathLike] = None,
+    box_color: str = "#4eb3d3",
+) -> None:
+    """
+    Create a box plot comparing a variable across intertidal zones,
+    using a consistent color for all boxes.
+
+    This function:
+    - Separates data by intertidal zone ('low', 'middle', 'high')
+    - Extracts and cleans values for a specified variable
+    - Creates a box plot with mean and median indicators
+    - Applies a uniform box color for visual consistency
+    - Annotates sample sizes for each zone
+    - Optionally saves the resulting figure to disk
+
+    Parameters
+    ----------
+    your_data : pandas.DataFrame
+        Input dataframe containing the response variable and an
+        'intertidal_zone' column.
+    yvar : str
+        Name of the column in `your_data` to visualize.
+    yaxis : str
+        Label for the y-axis.
+    title : str, optional
+        Title for the plot. If None, a default title is used.
+    save_path : str or pathlib.Path, optional
+        File path to save the plot. If None, the plot is not saved.
+    box_color : str, default "#4eb3d3"
+        Fill color applied uniformly to all box plots.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function assumes the existence of helper functions:
+    - `pull_data(data, yvar: str)`
+    """
     intertidal_zones = ["low", "middle", "high"]
     data = []
-    sample_sizes = []  # List to store sample sizes for each zone
+    sample_sizes = []
 
     for zone in intertidal_zones:
-        zone_data = your_data[your_data.intertidal_zone == zone]
+        zone_data = your_data[your_data["intertidal_zone"] == zone]
         zone_data = pull_data(zone_data, yvar)
         zone_data = zone_data[~np.isnan(zone_data)]
         data.append(zone_data)
-        sample_sizes.append(len(zone_data))  # Store the sample size for this zone
+        sample_sizes.append(len(zone_data))
 
     labels = ["Low", "Middle", "High"]
 
@@ -156,28 +220,27 @@ def intertidal_box_plot(your_data, yvar, yaxis, save_path=None):
         labels=labels,
         showmeans=True,
         meanprops={"marker": "o", "markerfacecolor": "black"},
-        medianprops={"color": "black", "linewidth": 1},  # Make median line black
+        medianprops={"color": "black", "linewidth": 1},
         patch_artist=True,
+        boxprops=dict(facecolor=box_color, edgecolor="black"),
+        whiskerprops=dict(color="black"),
+        capprops=dict(color="black"),
     )
-
-    # Set box colors to white
-    for b in box["boxes"]:
-        b.set(facecolor="white")
 
     ax.set_xlabel("Tidal Zone", fontsize=15, color="black")
     ax.xaxis.set_label_coords(0.5, -0.15)
 
     ax.set_ylabel(yaxis, fontsize=15, color="black")
+    ax.set_title(title, fontsize=20)
 
-    ax.set_title(get_title(yvar), fontsize=20)
     ax.set_xticklabels(labels, fontsize=13, color="black")
     ax.tick_params(axis="y", colors="black")
-    ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
 
-    # Adding the sample size legend to the top right corner
+    # Sample size annotation
     legend_text = "\n".join(
-        [f"{zone}: n={size}" for zone, size in zip(intertidal_zones, sample_sizes)]
+        f"{zone}: n={size}" for zone, size in zip(intertidal_zones, sample_sizes)
     )
+
     ax.text(
         0.95,
         0.95,
@@ -187,7 +250,11 @@ def intertidal_box_plot(your_data, yvar, yaxis, save_path=None):
         va="top",
         ha="right",
         color="black",
-        bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.3"),
+        bbox=dict(
+            facecolor="white",
+            edgecolor="black",
+            boxstyle="round,pad=0.3",
+        ),
     )
 
     if save_path:
@@ -274,14 +341,56 @@ def abiotic_plot(
 
 
 def batch_box_plot(
-    your_data,
-    yvar,
-    yaxis,
-    zone,
-    title=None,
-    save_path=None,
-    box_colors=None,
-):
+    your_data: pd.DataFrame,
+    yvar: str,
+    yaxis: str,
+    zone: Optional[str],
+    title: Optional[str] = None,
+    save_path: Optional[PathLike] = None,
+    box_colors: Optional[Union[str, Sequence[str]]] = None,
+) -> None:
+    """
+    Create grouped box plots for a given variable and intertidal zone.
+
+    This function:
+    - Groups data by collection number
+    - Extracts values for a specified variable
+    - Creates side-by-side box plots across time
+    - Optionally filters by intertidal zone
+    - Annotates the plot with zone and sample size information
+    - Optionally saves the figure to disk
+
+    Parameters
+    ----------
+    your_data : pandas.DataFrame
+        Input dataframe containing the response variable,
+        'intertidal_zone' column, and 'date_of_collection'.
+    yvar : str
+        Column name in `your_data` containing the values to plot.
+    yaxis : str
+        Label for the y-axis.
+    zone : str or None
+        Intertidal zone to filter by (e.g., 'low', 'mid', 'high').
+        If None, data from all zones are included.
+    title : str, optional
+        Title for the plot.
+    save_path : str or pathlib.Path, optional
+        Base file path (without extension) to save the plot as a PNG.
+        If None, the plot is not saved.
+    box_colors : str or sequence of str, optional
+        Color or colors to use for the box plots. If a single string
+        is provided, the same color is applied to all boxes.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function assumes the existence of helper functions:
+    - `group_data(data: pd.DataFrame, batch_size: int)`
+    - `pull_data(data, yvar: str)`
+    """
     batch_sizes = range(4, 17)
 
     valid_batch_sizes = []  # Keep track of valid batch sizes
@@ -379,8 +488,46 @@ def batch_box_plot(
 
 
 def batch_bar_overlay(
-    your_data, yvar, save_path=None, colors=["orange", "wheat", "red"], title=None
-):
+    your_data: pd.DataFrame,
+    yvar: str,
+    save_path: Optional[PathLike] = None,
+    colors: Sequence[str] = ("orange", "wheat", "red"),
+    title: Optional[str] = None,
+) -> None:
+    """
+    Create a grouped bar plot with error bars for intertidal zone batch statistics.
+
+    This function:
+    - Groups data by collection group and intertidal zone
+    - Computes mean, standard deviation, and standard error of the mean (SEM)
+    - Overlays grouped bars by intertidal zone with SEM error bars
+    - Optionally saves the resulting figure
+
+    Parameters
+    ----------
+    your_data : pandas.DataFrame
+        Input dataframe containing the response variable and an
+        'intertidal_zone' column.
+    yvar : str
+        Name of the column in `your_data` to analyze and plot.
+    save_path : str or pathlib.Path, optional
+        File path to save the generated plot. If None, the plot is not saved.
+    colors : sequence of str, default ("orange", "wheat", "red")
+        Bar colors corresponding to the intertidal zones
+        ['low', 'middle', 'high'].
+    title : str, optional
+        Title to apply to the plot (used for selected y-variables).
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function assumes the existence of helper functions:
+    - `group_data(data: pd.DataFrame, batch_size: int)`
+    - `pull_data(data, yvar: str)`
+    """
     labels = [
         "2022-08-27",
         "2022-09-06",
@@ -550,14 +697,7 @@ def regression(your_data, xvar, yvar, title, color="Blue", save_path=None, ax=No
     return model
 
 
-from typing import Optional, Tuple, Union
-from pathlib import Path
-
-from PIL import Image
-import matplotlib.pyplot as plt
-
-
-PathLike = Union[str, Path]
+from PIL import Image, ImageChops, ImageOps
 
 
 def export_plos_tiff(
@@ -567,63 +707,46 @@ def export_plos_tiff(
     max_width_px: int = 2250,
     max_height_px: int = 2625,
 ) -> None:
-    """
-    Export an image as a PLOS-compliant TIFF file.
-
-    This function:
-    - Opens an image from disk
-    - Converts it to RGB if necessary
-    - Resizes it to fit within PLOS maximum pixel dimensions
-      while preserving aspect ratio
-    - Saves the result as a LZW-compressed TIFF with specified DPI
-
-    Parameters
-    ----------
-    input_path : str or pathlib.Path
-        Path to the input image file.
-    output_path : str or pathlib.Path, optional
-        Path to save the output TIFF file. If None, a filename
-        with '_plos.tiff' appended will be created.
-    dpi : tuple of int, default (300, 300)
-        DPI (dots per inch) to embed in the TIFF file.
-    max_width_px : int, default 2250
-        Maximum allowed image width in pixels.
-    max_height_px : int, default 2625
-        Maximum allowed image height in pixels.
-
-    Returns
-    -------
-    None
-    """
     img = Image.open(input_path)
 
-    # Convert to RGB if needed
     if img.mode != "RGB":
         img = img.convert("RGB")
 
-    # Original size
-    orig_width, orig_height = img.size
-    print(f"Original size: {orig_width} x {orig_height} px")
+    # --- Trim whitespace ---
+    bg = Image.new(img.mode, img.size, img.getpixel((0, 0)))
+    diff = ImageChops.difference(img, bg)
+    bbox = diff.getbbox()
 
-    # Compute resize ratio (scale down if necessary)
+    if bbox:
+        img = img.crop(bbox)
+        print("Cropped whitespace around figure.")
+
+    # --- Add controlled padding back ---
+    pad_frac = 0.02  # 2% padding
+    pad_x = int(img.size[0] * pad_frac)
+    pad_y = int(img.size[1] * 0.04)  # Slightly more vertical padding
+
+    img = ImageOps.expand(
+        img,
+        border=(pad_x, pad_y, pad_x, pad_y),
+        fill="white",
+    )
+
+    orig_width, orig_height = img.size
+    print(f"Post-crop size: {orig_width} x {orig_height} px")
+
     width_ratio = max_width_px / orig_width
     height_ratio = max_height_px / orig_height
     resize_ratio = min(1.0, width_ratio, height_ratio)
 
-    # Resize if image is too big
     if resize_ratio < 1.0:
         new_size = (int(orig_width * resize_ratio), int(orig_height * resize_ratio))
         img = img.resize(new_size, Image.LANCZOS)
-        print(f"Resized to: {new_size[0]} x {new_size[1]} px")
-    else:
-        print("Image is within allowed dimensions; no resize needed.")
 
-    # Save to TIFF
     if output_path is None:
-        output_path = input_path.rsplit(".", 1)[0] + "_plos.tiff"
+        output_path = str(input_path).rsplit(".", 1)[0] + "_plos.tiff"
 
     img.save(output_path, format="TIFF", dpi=dpi, compression="tiff_lzw")
-    print(f"Saved PLOS-compliant TIFF to: {output_path}")
 
 
 def inspect_image(path: PathLike) -> None:
