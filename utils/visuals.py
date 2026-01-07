@@ -550,9 +550,51 @@ def regression(your_data, xvar, yvar, title, color="Blue", save_path=None, ax=No
     return model
 
 
+from typing import Optional, Tuple, Union
+from pathlib import Path
+
+from PIL import Image
+import matplotlib.pyplot as plt
+
+
+PathLike = Union[str, Path]
+
+
 def export_plos_tiff(
-    input_path, output_path=None, dpi=(300, 300), max_width_px=2250, max_height_px=2625
-):
+    input_path: PathLike,
+    output_path: Optional[PathLike] = None,
+    dpi: Tuple[int, int] = (300, 300),
+    max_width_px: int = 2250,
+    max_height_px: int = 2625,
+) -> None:
+    """
+    Export an image as a PLOS-compliant TIFF file.
+
+    This function:
+    - Opens an image from disk
+    - Converts it to RGB if necessary
+    - Resizes it to fit within PLOS maximum pixel dimensions
+      while preserving aspect ratio
+    - Saves the result as a LZW-compressed TIFF with specified DPI
+
+    Parameters
+    ----------
+    input_path : str or pathlib.Path
+        Path to the input image file.
+    output_path : str or pathlib.Path, optional
+        Path to save the output TIFF file. If None, a filename
+        with '_plos.tiff' appended will be created.
+    dpi : tuple of int, default (300, 300)
+        DPI (dots per inch) to embed in the TIFF file.
+    max_width_px : int, default 2250
+        Maximum allowed image width in pixels.
+    max_height_px : int, default 2625
+        Maximum allowed image height in pixels.
+
+    Returns
+    -------
+    None
+    """
     img = Image.open(input_path)
 
     # Convert to RGB if needed
@@ -584,14 +626,38 @@ def export_plos_tiff(
     print(f"Saved PLOS-compliant TIFF to: {output_path}")
 
 
-def inspect_image(path):
+def inspect_image(path: PathLike) -> None:
+    """
+    Print basic metadata about an image file.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the image file.
+
+    Returns
+    -------
+    None
+    """
     with Image.open(path) as img:
         print(f"Mode: {img.mode}")
         print(f"Size: {img.size} pixels")
         print(f"Info: {img.info}")
 
 
-def show_tiff(path):
+def show_tiff(path: PathLike) -> None:
+    """
+    Display a TIFF image using matplotlib.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the TIFF image.
+
+    Returns
+    -------
+    None
+    """
     img = Image.open(path)
     plt.imshow(img)
     plt.axis("off")  # Hide axes
