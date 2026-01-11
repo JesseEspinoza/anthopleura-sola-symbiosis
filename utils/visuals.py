@@ -265,14 +265,14 @@ def intertidal_box_plot(
 
 
 def abiotic_plot(
-    plot_type,
-    data_dict,
-    xlabel,
-    ylabel,
-    xlim,
-    ylim=None,
-    title=None,
-    save_path=None,
+    plot_type: str,
+    data_dict: dict,
+    xlabel: str,
+    ylabel: str,
+    xlim: tuple,
+    ylim: tuple = None,
+    title: str = None,
+    save_path: str = None,
 ):
     """
     Function to create and save line or scatter plots with customization options.
@@ -626,7 +626,37 @@ def batch_bar_overlay(
     plt.show()
 
 
-def regression(your_data, xvar, yvar, title, color="Blue", save_path=None, ax=None):
+def regression(
+    your_data: pd.DataFrame,
+    xvar: str,
+    yvar: str,
+    title: str,
+    color: str = "Blue",
+    save_path: str = None,
+    ax: plt.Axes = None,
+):
+    """
+    Create a regression plot with statistical annotations.
+    Parameters
+    ----------
+    your_data : pandas.DataFrame
+        Input dataframe containing the x and y variables.
+    xvar : str
+        Name of the column in `your_data` to use as the x variable.
+    yvar : str
+        Name of the column in `your_data` to use as the y variable.
+    title : str
+        Title for the plot.
+    color : str, default "Blue"
+        Color for the regression line and points.
+    save_path : str, optional
+        File path to save the plot. If None, the plot is not saved.
+    ax : matplotlib.axes.Axes, optional
+        Axes object to plot on. If None, a new figure and axes are created.
+    Returns
+    -------
+    model : statsmodels.regression.linear_model.RegressionResultsWrapper
+    """
     your_data = your_data[[xvar, yvar]].dropna()
 
     # Convert to float

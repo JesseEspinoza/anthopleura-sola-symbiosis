@@ -312,7 +312,7 @@ def get_title(yvar):
         return "Tidal Zone on Chlorophyll per Cell"
 
 
-def process_abiotic_data(abiotic_data_path, start_date, end_date):
+def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str):
     """
     Processes multiple abiotic datasets, filters by date range, extracts relevant columns, and calculates 7-day and daily averages.
 
@@ -474,7 +474,7 @@ for stn in stns:
     lons.append(site_dict[stn]["lon"])  # Same but for longitude
 
 
-def site_sample_area(site, data, start_time, end_time):
+def site_sample_area(site: str, data: xr.Dataset, start_time: str, end_time: str):
     """
     This function will take your sites coordinates and make the sample area while
     scooting a bit away from land. Then it will take those coordinates and apply
