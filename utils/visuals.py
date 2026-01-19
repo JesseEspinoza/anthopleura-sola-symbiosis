@@ -1,72 +1,83 @@
+"""
+Visualization utilities for data analysis.
+
+This module provides plotting functions for analyzing and visualizing
+algal density, chlorophyll concentration, and environmental data across
+intertidal zones and time periods.
+"""
+
 # load some library
-import numpy as np
-import sys
 import os
-from datetime import datetime, timedelta
-import subprocess
-import matplotlib.pyplot as plt
 import warnings
-import statsmodels.api as sm
-import seaborn as sns
-import matplotlib.pyplot as plt
-from PIL import Image
-
 from pathlib import Path
+from typing import Optional, Sequence, Tuple, Union
 
-from PIL import Image
 import matplotlib.pyplot as plt
-
-from typing import Optional, Sequence, Union, Tuple
+import numpy as np
+import seaborn as sns
+import statsmodels.api as sm
+from PIL import Image, ImageChops, ImageOps
 
 PathLike = Union[str, Path]
 
-
-warnings.filterwarnings("ignore")
-import time
 import pandas as pd
 from matplotlib.dates import DateFormatter
-import statistics
-from scipy.stats import normaltest
-from scipy.stats import shapiro
 from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
+from calendar import Calendar
+
 import matplotlib.dates as mdates
-from scipy import stats
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
 from scipy.stats import sem
-from calendar import Calendar, monthrange
 
 c = Calendar()
-import math
-import matplotlib.colors as mcolors
-from matplotlib.patches import Rectangle
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from IPython.core import macro
-from itertools import combinations
-import itertools
-import seaborn as sns
-from scipy.stats import linregress
-import xarray as xr
-import netCDF4
-
-# from google.colab.data_table import DataTable
-# DataTable.max_columns = 40
-import scikit_posthocs as sp
-import math
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.patches import Rectangle
 import sys
 
-# import msfunctions
-
-from utils.functions import group_data, pull_data, get_y_label
+from utils.functions import group_data, pull_data
 
 
-def batch_bar(your_data, yvar, zone, bar_color="mediumseagreen", save_path=None):
+def batch_bar(
+    your_data: pd.DataFrame,
+    yvar: str,
+    zone: Optional[str],
+    bar_color: str = "mediumseagreen",
+    save_path: Optional[PathLike] = None,
+) -> None:
+    """
+    Create a bar plot showing group statistics over time with error bars.
+
+    This function generates a time-series bar plot displaying mean values
+    with standard error bars for a specified variable, optionally filtered
+    by intertidal zone.
+
+    Parameters
+    ----------
+    your_data : pd.DataFrame
+        Input dataframe containing the response variable and
+        'intertidal_zone' column.
+    yvar : str
+        Column name in `your_data` to analyze. Expected values include:
+        - 'num_cells_per_ug_protein'
+        - 'ng_chlorophyll_per_ug_protein'
+    zone : str or None
+        Intertidal zone to filter by (e.g., 'low', 'mid', 'high').
+        If None, data from all zones are included.
+    bar_color : str, default "mediumseagreen"
+        Color for the bar plots.
+    save_path : str or Path, optional
+        File path to save the plot. If None, the plot is not saved.
+
+    Returns
+    -------
+    None
+        Displays the plot using matplotlib.
+
+    Notes
+    -----
+    This function assumes the existence of helper functions:
+    - `group_data(data: pd.DataFrame, batch_size: int) -> pd.DataFrame`
+    - `pull_data(data: pd.DataFrame, yvar: str) -> np.ndarray`
+    """
     labels = [
         "Aug 27, 2022",
         "Sept 6, 2022",
@@ -141,17 +152,6 @@ def batch_bar(your_data, yvar, zone, bar_color="mediumseagreen", save_path=None)
         print(f"Plot saved to {save_path}")
 
     plt.show()
-
-
-from typing import Optional, Union
-from pathlib import Path
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-
-PathLike = Union[str, Path]
 
 
 def intertidal_box_plot(
@@ -278,14 +278,21 @@ def abiotic_plot(
     Function to create and save line or scatter plots with customization options.
 
     Parameters:
-        plot_type (str): 'line' or 'scatter'
+    -----------
+    plot_type (str): 'line' or 'scatter'
         data_dict (dict): Dictionary of data with keys as labels and values as tuples (x, y, color, plot_type).
-        title (str): Plot title.
-        xlabel (str): Label for the x-axis.
-        ylabel (str): Label for the y-axis.
-        xlim (tuple): X-axis limits (start_date, end_date).
-        ylim (tuple, optional): Y-axis limits.
-        save_path (str, optional): File path to save the figure.
+    title (str):
+        Plot title.
+    xlabel (str):
+        Label for the x-axis.
+    ylabel (str):
+        Label for the y-axis.
+    xlim (tuple):
+        X-axis limits (start_date, end_date).
+    ylim (tuple, optional):
+        Y-axis limits.
+    save_path (str, optional):
+        File path to save the figure.
     """
     fig, ax = plt.subplots(figsize=(14, 7) if plot_type == "line" else (12, 3.8))
 
@@ -358,7 +365,7 @@ def batch_box_plot(
     - Creates side-by-side box plots across time
     - Optionally filters by intertidal zone
     - Annotates the plot with zone and sample size information
-    - Optionally saves the figure to disk
+    - Optionally saves the figure to designated path
 
     Parameters
     ----------
@@ -498,10 +505,10 @@ def batch_bar_overlay(
     Create a grouped bar plot with error bars for intertidal zone batch statistics.
 
     This function:
-    - Groups data by collection group and intertidal zone
-    - Computes mean, standard deviation, and standard error of the mean (SEM)
-    - Overlays grouped bars by intertidal zone with SEM error bars
-    - Optionally saves the resulting figure
+        - Groups data by collection group and intertidal zone
+        - Computes mean, standard deviation, and standard error of the mean (SEM)
+        - Overlays grouped bars by intertidal zone with SEM error bars
+        - Optionally saves the resulting figure
 
     Parameters
     ----------
@@ -626,7 +633,7 @@ def batch_bar_overlay(
     plt.show()
 
 
-def regression(
+def regression_plot(
     your_data: pd.DataFrame,
     xvar: str,
     yvar: str,
@@ -727,9 +734,6 @@ def regression(
     return model
 
 
-from PIL import Image, ImageChops, ImageOps
-
-
 def export_plos_tiff(
     input_path: PathLike,
     output_path: Optional[PathLike] = None,
@@ -737,6 +741,30 @@ def export_plos_tiff(
     max_width_px: int = 2250,
     max_height_px: int = 2625,
 ) -> None:
+    """
+    Process and export an image as a TIFF file suitable for PLOS submission.
+    This function:
+        - Opens the input image
+        - Trims whitespace around the figure
+        - Adds controlled padding back to the image
+        - Resizes the image to fit within specified max dimensions
+    Parameters
+    ----------
+    input_path : str or pathlib.Path
+        Path to the input image file.
+    output_path : str or pathlib.Path, optional
+        Path to save the processed TIFF image. If None, saves
+        with '_plos.tiff' suffix in the same directory as input.
+    dpi : tuple of int, default (300, 300)
+        DPI settings for the output TIFF image.
+    max_width_px : int, default 2250
+        Maximum width in pixels for the output image.
+    max_height_px : int, default 2625
+        Maximum height in pixels for the output image.
+    Returns
+    -------
+    None
+    """
     img = Image.open(input_path)
 
     if img.mode != "RGB":
