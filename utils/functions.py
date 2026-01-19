@@ -1,64 +1,69 @@
+"""
+Various statistical and data processing functions for analyzing intertidal data.
+"""
+
 # load some library
-import numpy as np
-import sys
-import os
-from datetime import datetime, timedelta
-import subprocess
-import matplotlib.pyplot as plt
 import warnings
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 warnings.filterwarnings("ignore")
-import time
 import pandas as pd
 from matplotlib.dates import DateFormatter
-import statistics
-from scipy.stats import normaltest
-from scipy.stats import shapiro
-from pandas.plotting import register_matplotlib_converters
 
-register_matplotlib_converters()
+from calendar import Calendar
+
 import matplotlib.dates as mdates
 from scipy import stats
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
 from scipy.stats import sem
-from calendar import Calendar, monthrange
 
 c = Calendar()
-import math
-import matplotlib.colors as mcolors
-from matplotlib.patches import Rectangle
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from IPython.core import macro
-from itertools import combinations
 import itertools
-import seaborn as sns
-from scipy.stats import linregress
+
 import xarray as xr
-import netCDF4
-
-# from google.colab.data_table import DataTable
-# DataTable.max_columns = 40
-import scikit_posthocs as sp
-import math
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.patches import Rectangle
-import sys
-
-# import msfunctions
 
 
-def normalcy(dataset, desired_variable):
+def normalcy(dataset: xr.Dataset, desired_variable: str):
+    """
+    Test for normalcy of data using Shapiro-Wilk test.
+
+    Parameters:
+    -----------
+    dataset (xr.Dataset):
+        The dataset containing the variable to be tested.
+    desired_variable (str):
+        The name of the variable to be tested for normalcy.
+
+    Returns:
+    --------
+    None:
+        Prints the result of the Shapiro-Wilk test.
+    """
     x = pull_data(dataset, desired_variable)
     xmask = x[np.logical_not(np.isnan(x))]
     shapiro_test = stats.shapiro(xmask)
     print(shapiro_test)
 
 
-def kruskal_drops(your_data, yvar, zone):
+def kruskal_drops(your_data: pd.DataFrame, yvar: str, zone: str):
+    """
+    Perform Kruskal-Wallis test to compare pre- and post-drop data.
 
+    Parameters:
+    -----------
+    your_data (pd.DataFrame):
+        The dataset containing the variable to be tested.
+    yvar (str):
+        The name of the variable to be tested.
+    zone (str):
+        The intertidal zone to filter by ('low', 'medium', 'high', or 'all').
+
+    Returns:
+    --------
+    None:
+        Prints the result of the Kruskal-Wallis test.
+    """
     pre_drop_date_start = "2022-07-01T12:00:00"
     pre_drop_date_end = "2022-11-25T12:00:00"
     pre_drop = your_data[
@@ -91,16 +96,33 @@ def kruskal_drops(your_data, yvar, zone):
         )
 
 
-def group_data(your_data, group_num):
+def group_data(your_data: pd.DataFrame, group_num: int):
+    """
+    Group data by collection group number.
+
+    Parameters:
+    -----------
+    your_data (pd.DataFrame):
+        The dataset containing the collection group information.
+    group_num (int):
+        The collection group number to filter by.
+    """
     group = your_data[your_data.collection_group == group_num]
     if group.empty:
         print(f"No data found for group {group_num}")
     return group
 
 
-def pull_data(your_data, desired_variable):
+def pull_data(your_data: pd.DataFrame, desired_variable: str):
     """
-    desried variable need to be in ''
+    Pull and isolate a specific variable from the dataset.
+
+    Parameters:
+    -----------
+    your_data (pd.DataFrame):
+        The dataset containing the variable to be pulled.
+    desired_variable (str):
+        The name of the variable to be pulled.
     """
     variable = your_data[desired_variable]
     if variable.empty:
@@ -108,7 +130,20 @@ def pull_data(your_data, desired_variable):
     return variable
 
 
-def intertidal_graph(your_data, yvar):
+def intertidal_graph(your_data: pd.DataFrame, yvar: str):
+    """
+    Generate a bar graph comparing means of a specified variable across intertidal zones.
+    Parameters:
+    -----------
+    your_data (pd.DataFrame):
+        The dataset containing the intertidal zone and variable data.
+    yvar (str):
+        The name of the variable to be analyzed and plotted.
+    Returns:
+    --------
+    None:
+        Displays a bar graph and prints Kruskal-Wallis test results.
+    """
     intertidal_zones = ["low", "medium", "high"]
     data = []
 
@@ -187,78 +222,24 @@ def intertidal_graph(your_data, yvar):
     # return data
 
 
-def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
-    start_date = "2022-08-01T00:00:00"
-    end_date = "2023-03-31T00:00:00"
-    f, (ax) = plt.subplots(figsize=(12, 3.8))
+def kruskal_drops(your_data: pd.DataFrame, yvar: str, zone: str):
+    """
+    Perform Kruskal-Wallis test to compare pre- and post-drop data.
 
-    if yvar1 == "num_cells_per_ug_protein":
-        label1 = "Algal Density"
-    elif yvar1 == "ng_chlorophyll_per_ug_protein":
-        label1 = "Chlorophyll Concentration"
-    elif yvar1 == "ng_chlorophyll_per_hundred_cells":
-        label1 = "ng Chlorophyll per 100 Cells"
-    else:
-        label1 = "Algal Density"
+    Parameters:
+    -----------
+    your_data (pd.DataFrame):
+        The dataset containing the variable to be tested.
+    yvar (str):
+        The name of the variable to be tested.
+    zone (str):
+        The intertidal zone to filter by ('low', 'medium', 'high', or 'all').
 
-    if yvar2 == "temp(c)":
-        label2 = "Temperature"
-    elif yvar2 == "salinity(psu)" or "salinity(ppt)":
-        label2 = "Salinity"
-    else:
-        label2 = "skrt"
-
-    ax.scatter(
-        your_data1[xvar],
-        your_data1[yvar1],
-        color="royalblue",
-        s=10,
-        zorder=3,
-        label=label1,
-    )
-    # ax.set(xlabel = "Date", ylabel='Num Cells')
-    # ax.set_title('Algal Density and Star Oddi Temp', fontsize =25)
-    ax.tick_params(
-        axis="x", labelsize=11, rotation=15, labelbottom=True, direction="out", pad=10
-    )
-    ax.tick_params(axis="y", labelsize=12)
-    ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=3))
-    # ax.xaxis.set_major_formatter(DateFormatter("%m-%d-%y"))
-    ax.xaxis.set_major_formatter(DateFormatter("%m-%d-%Y"))
-    ax.set_xlim(start_date, end_date)
-    # ax.grid(False)
-
-    if yvar1 == "num_cells_per_ug_protein":
-        ax.set_ylabel("Cells/ug Animal Protein", fontsize=15)
-        # ax.set_title('Merged algal and Fort Point salinity data overlayed', fontsize=20)
-
-    if yvar1 == "ng_chlorophyll_per_ug_protein":
-        ax.set_ylabel("ng Chlorophyll per Animal Protein", fontsize=15)
-        ax.set_title("Chlorophyll α with Fort Point Salinity Overlayed", fontsize=20)
-
-    if yvar1 == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chlorophyll per 100 Cells", fontsize=15)
-
-    ax2 = ax.twinx()  # to plot a second y axis
-    ax2.scatter(your_data2[xvar], your_data2[yvar2], color="orange", label=label2, s=15)
-    # ax2.set(ylabel='Rainfall (mm)')
-    ax2.tick_params(axis="y", labelsize=12)
-    ax2.yaxis.label.set_size(20)
-    ax2.set_ylim(5, 35)
-    ax2.grid(False)
-
-    if yvar2 == "temp(c)":
-        plt.ylabel("Temp (c)", fontsize=15, rotation=270, va="bottom")
-
-    if yvar2 == "salinity(psu)" or "salinity(ppt)":
-        plt.ylabel("Salinity", fontsize=15, rotation=270, va="bottom")
-
-    lines, labels = ax.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines + lines2, labels + labels2, loc="best", fontsize=9)
-
-
-def kruskal_drops(your_data, yvar, zone):
+    Returns:
+    --------
+    None:
+        Prints the result of the Kruskal-Wallis test.
+    """
 
     pre_drop_date_start = "2022-07-01T12:00:00"
     pre_drop_date_end = "2022-11-10T12:00:00"
@@ -291,25 +272,6 @@ def kruskal_drops(your_data, yvar, zone):
             f"Testing {zone} intertidal zone before vs after drop:",
             stats.kruskal(pre_drop[yvar], post_drop[yvar]),
         )
-        # display(post_drop)
-
-
-def get_y_label(yvar):
-    if yvar == "num_cells_per_ug_protein":
-        return "Cells/ug Animal Protein"
-    elif yvar == "ng_chlorophyll_per_ug_protein":
-        return "ng Chlorophyll per Animal Protein"
-    elif yvar == "ng_chlorophyll_per_hundred_cells":
-        return "ng Chlorophyll per 100 Cells"
-
-
-def get_title(yvar):
-    if yvar == "num_cells_per_ug_protein":
-        return "Tidal Zone on Algal Density"
-    elif yvar == "ng_chlorophyll_per_ug_protein":
-        return "Tidal Zone on Chlorophyll α Production"
-    elif yvar == "ng_chlorophyll_per_hundred_cells":
-        return "Tidal Zone on Chlorophyll per Cell"
 
 
 def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str):
@@ -331,7 +293,18 @@ def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str)
     daily_averages = {}
 
     # Helper function to load, filter, and clean data
-    def load_and_filter(file_name, date_col, additional_filters=None):
+    def load_and_filter(file_name: str, date_col: str, additional_filters: list = None):
+        """
+        Loads a CSV file, filters by date range and additional conditions, and cleans column names.
+
+        Parameters:
+        file_name (str): The name of the CSV file to load.
+        date_col (str): The name of the column containing date-time information.
+        additional_filters (list, optional): A list of additional filtering conditions (functions) to apply.
+
+        Returns:
+        pd.DataFrame: The cleaned and filtered DataFrame.
+        """
         data = pd.read_csv(abiotic_data_path + file_name)
 
         # Remove any 'Unnamed: _' columns
@@ -363,7 +336,9 @@ def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str)
 
         return data
 
-    def calculate_seven_day_average(data, base_name):
+    def calculate_seven_day_average(
+        data: pd.DataFrame,
+    ):
         # Use the `start_date` from the outer scope here
         averaged_data = data.copy()
         averaged_data.set_index("date_time", inplace=True)
@@ -389,7 +364,7 @@ def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str)
 
         return seven_day_avg
 
-    def calculate_daily_average(data):
+    def calculate_daily_average(data: pd.DataFrame):
         # Set 'date_time' as index for daily resampling
         averaged_data = data.copy()
         averaged_data.set_index("date_time", inplace=True)
@@ -428,7 +403,7 @@ def process_abiotic_data(abiotic_data_path: str, start_date: str, end_date: str)
         results[name] = data
 
         # Calculate and store 7-day averages
-        averaged_data_seven_day = calculate_seven_day_average(data, name)
+        averaged_data_seven_day = calculate_seven_day_average(data)
         seven_day_averages[f"{name}_seven_day_average"] = averaged_data_seven_day
 
         # Calculate and store daily averages

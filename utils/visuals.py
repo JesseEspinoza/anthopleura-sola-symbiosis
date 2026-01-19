@@ -17,6 +17,7 @@ import numpy as np
 import seaborn as sns
 import statsmodels.api as sm
 from PIL import Image, ImageChops, ImageOps
+from scipy import stats
 
 PathLike = Union[str, Path]
 
@@ -843,3 +844,166 @@ def show_tiff(path: PathLike) -> None:
     plt.imshow(img)
     plt.axis("off")  # Hide axes
     plt.show()
+
+
+def intertidal_graph(your_data: pd.DataFrame, yvar: str) -> None:
+    """
+    Generate a bar graph comparing means of a specified variable across intertidal zones.
+
+    Parameters
+    ----------
+    your_data : pandas.DataFrame
+        Input dataframe containing the response variable and an 'intertidal_zone' column.
+    yvar : str
+        Name of the column in `your_data` to analyze and plot.
+    Returns
+    -------
+    None
+    """
+    intertidal_zones = ["low", "medium", "high"]
+    data = []
+
+    for zone in intertidal_zones:
+        zone_data = your_data[your_data.intertidal_zone == zone]
+        zone_data = pull_data(zone_data, yvar)
+        zone_data = zone_data[~np.isnan(zone_data)]
+
+        zone_mean = np.mean(zone_data)
+        zone_std = np.std(zone_data)
+        zone_sem = sem(zone_data)
+
+        data.append((zone_mean, zone_sem, zone_std))
+
+    labels = ["Low", "Middle", "High"]
+    x_pos = np.arange(len(labels))
+    CTEs = [mean for mean, _, _ in data]
+    SEMs = [sem for _, sem, _ in data]
+    error = [std for _, _, std in data]
+
+    fig, ax = plt.subplots()
+    ax.set_facecolor("white")
+    ax.bar(x_pos, CTEs, width=0.7, zorder=2, color="goldenrod")
+    plt.errorbar(x_pos, CTEs, yerr=SEMs, fmt="o", color="black")
+    ax.set_xlabel("Tidal Zone", fontsize=20, color="black")
+    ax.xaxis.set_label_coords(0.5, -0.15)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels, fontsize=17, color="black")
+    ax.tick_params(axis="y", colors="black")
+
+    if yvar == "num_cells_per_ug_protein":
+        ax.set_ylabel("Cells/ug Animal Protein", fontsize=20, color="black")
+        ax.set_title("Middle Tidal Zone has \n Highest Algal Density", fontsize=20)
+    elif yvar == "ng_chlorophyll_per_ug_protein":
+        ax.set_ylabel(
+            "ng Chlorophyll \n  per Animal Protein", fontsize=17, color="black"
+        )
+        ax.set_title(
+            "Middle Tidal Zone has \n Highest Chlorophyll α Production", fontsize=20
+        )
+    elif yvar == "ng_chlorophyll_per_hundred_cells":
+        ax.set_ylabel("ng Chlorophyll \n  per 100 Cells", fontsize=17, color="black")
+        # ax.set_title('Tidal Zone on Chlorophyll per Cell', fontsize = 20)
+
+    ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
+
+    combinations = list(itertools.combinations(intertidal_zones, 3))
+
+    for combination in combinations:
+        zone1, zone2, zone3 = combination
+
+        zone1_data = your_data[your_data.intertidal_zone == zone1]
+        zone1_data = pull_data(zone1_data, yvar)
+        zone1_data = zone1_data[~np.isnan(zone1_data)]
+
+        zone2_data = your_data[your_data.intertidal_zone == zone2]
+        zone2_data = pull_data(zone2_data, yvar)
+        zone2_data = zone2_data[~np.isnan(zone2_data)]
+
+        zone3_data = your_data[your_data.intertidal_zone == zone3]
+        zone3_data = pull_data(zone3_data, yvar)
+        zone3_data = zone3_data[~np.isnan(zone3_data)]
+
+        print(f"Kruskal testing {zone1}, {zone2}, and {zone3} zones:")
+        print(f"Kruskal result: {stats.kruskal(zone1_data, zone2_data, zone3_data)}")
+        print()
+        print(f"Kruskal testing {zone1} and {zone2} zones:")
+        print(f"Kruskal result: {stats.kruskal(zone1_data, zone2_data)}")
+        print()
+        print(f"Kruskal testing {zone1} and {zone3} zones:")
+        print(f"Kruskal result: {stats.kruskal(zone1_data, zone3_data)}")
+        print()
+        print(f"Kruskal testing {zone2}, and {zone3} zones:")
+        print(f"Kruskal result: {stats.kruskal(zone2_data, zone3_data)}")
+
+    # return data
+
+
+def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
+    start_date = "2022-08-01T00:00:00"
+    end_date = "2023-03-31T00:00:00"
+    f, (ax) = plt.subplots(figsize=(12, 3.8))
+
+    if yvar1 == "num_cells_per_ug_protein":
+        label1 = "Algal Density"
+    elif yvar1 == "ng_chlorophyll_per_ug_protein":
+        label1 = "Chlorophyll Concentration"
+    elif yvar1 == "ng_chlorophyll_per_hundred_cells":
+        label1 = "ng Chlorophyll per 100 Cells"
+    else:
+        label1 = "Algal Density"
+
+    if yvar2 == "temp(c)":
+        label2 = "Temperature"
+    elif yvar2 == "salinity(psu)" or "salinity(ppt)":
+        label2 = "Salinity"
+    else:
+        label2 = "skrt"
+
+    ax.scatter(
+        your_data1[xvar],
+        your_data1[yvar1],
+        color="royalblue",
+        s=10,
+        zorder=3,
+        label=label1,
+    )
+    # ax.set(xlabel = "Date", ylabel='Num Cells')
+    # ax.set_title('Algal Density and Star Oddi Temp', fontsize =25)
+    ax.tick_params(
+        axis="x", labelsize=11, rotation=15, labelbottom=True, direction="out", pad=10
+    )
+    ax.tick_params(axis="y", labelsize=12)
+    ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=3))
+    # ax.xaxis.set_major_formatter(DateFormatter("%m-%d-%y"))
+    ax.xaxis.set_major_formatter(DateFormatter("%m-%d-%Y"))
+    ax.set_xlim(start_date, end_date)
+    # ax.grid(False)
+
+    if yvar1 == "num_cells_per_ug_protein":
+        ax.set_ylabel("Cells/ug Animal Protein", fontsize=15)
+        # ax.set_title('Merged algal and Fort Point salinity data overlayed', fontsize=20)
+
+    if yvar1 == "ng_chlorophyll_per_ug_protein":
+        ax.set_ylabel("ng Chlorophyll per Animal Protein", fontsize=15)
+        ax.set_title("Chlorophyll α with Fort Point Salinity Overlayed", fontsize=20)
+
+    if yvar1 == "ng_chlorophyll_per_hundred_cells":
+        ax.set_ylabel("ng Chlorophyll per 100 Cells", fontsize=15)
+
+    ax2 = ax.twinx()  # to plot a second y axis
+    ax2.scatter(your_data2[xvar], your_data2[yvar2], color="orange", label=label2, s=15)
+    # ax2.set(ylabel='Rainfall (mm)')
+    ax2.tick_params(axis="y", labelsize=12)
+    ax2.yaxis.label.set_size(20)
+    ax2.set_ylim(5, 35)
+    ax2.grid(False)
+
+    if yvar2 == "temp(c)":
+        plt.ylabel("Temp (c)", fontsize=15, rotation=270, va="bottom")
+
+    if yvar2 == "salinity(psu)" or "salinity(ppt)":
+        plt.ylabel("Salinity", fontsize=15, rotation=270, va="bottom")
+
+    lines, labels = ax.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc="best", fontsize=9)
