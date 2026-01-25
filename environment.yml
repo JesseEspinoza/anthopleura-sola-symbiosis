@@ -1,0 +1,20 @@
+name: asola-analysis
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas
+  - xarray
+  - matplotlib
+  - numpy
+  - scipy
+  - seaborn
+  - statsmodels
+  - pillow
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+    - scikit-posthocs
+    - python-dotenv
