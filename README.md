@@ -10,7 +10,7 @@ An analysis on a population of solitary anemones, measuring the health and statu
 ## Repository Structure
 
 ```text
-sfsu-masters-anthopleura-sola/
+anthopleura-sola-symbiosis/
 ├── abiotic_data/      # Cleaned temperature and salinity data from both on and off site loggers
                        # Also includes cleaned terrestrial precipitation data
 ├── biotic_data/       # Processed symbiotic dependent variables (algal density, chlorophyll concentration)
