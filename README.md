@@ -1,4 +1,4 @@
-# Impacts of Seasonality, Extreme Weather, and Intertidal Positioning on Anemone *Anthopleura sola* Symbiosis with Photosynthetic Algae
+# Impacts of Seasonality, Atmospheric Rivers, and Intertidal Positioning on Anemone *Anthopleura sola* Symbiosis with Photosynthetic Algae
 An analysis on a population of solitary anemones, measuring the health and status of their symbiotic relationship with brown alga *Breviolum muscatinei* under the backdrop of seasonal changes and multiple, distinct atmospheric rivers  
 
 **Motivation**: Study how the symbiotic relation between the starburst anemone and its brown algae varies within a population and within individuals over seasonal changes.
