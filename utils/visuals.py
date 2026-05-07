@@ -710,8 +710,8 @@ def regression_plot(
 
     # Add stats box
     r2 = model.rsquared
-    p_val = model.pvalues[1]
-    se = model.bse[1]
+    p_val = model.pvalues[xvar]  # use variable name, not integer position
+    se = model.bse[xvar]
     stats_text = f"$R^2$: {r2:.3f}\n$p$: {p_val:.3f}\nSE: {se:.3f}\nDW: {dw:.3f}"
     ax.text(
         0.05,
