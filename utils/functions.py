@@ -633,12 +633,6 @@ def spearman_correlation_plot(
     place of regression_plot() wherever Spearman's correlation is the
     reported statistic, so the figure matches the test.
 
-    NOTE: this lives in functions_v2.py for now since that's what we've
-    been editing together, but since it's a plotting function it would
-    naturally sit alongside regression_plot() in utils/visuals.py --
-    feel free to relocate it there and adjust the notebook's import
-    accordingly.
-
     Parameters
     ----------
     your_data : pandas.DataFrame
@@ -895,7 +889,7 @@ for stn in stns:
 
 def site_sample_area(site: str, data: xr.Dataset, start_time: str, end_time: str):
     """
-    This function will take your sites coordinates and make the sample area while
+    This function will take site coordinates and make the sample area while
     scooting a bit away from land. Then it will take those coordinates and apply
     them to a pointer (in this case sst), which has the variable selected and
     our time range in too.
