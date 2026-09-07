@@ -186,13 +186,13 @@ def intertidal_graph(your_data: pd.DataFrame, yvar: str):
         ax.set_title("Middle Tidal Zone has \n Highest Algal Density", fontsize=20)
     elif yvar == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel(
-            "ng Chlorophyll \n  per Animal Protein", fontsize=17, color="black"
+            "ng Chlorophyll a \n  per Animal Protein", fontsize=17, color="black"
         )
         ax.set_title(
-            "Middle Tidal Zone has \n Highest Chlorophyll α Production", fontsize=20
+            "Middle Tidal Zone has \n Highest Chlorophyll a Production", fontsize=20
         )
     elif yvar == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chlorophyll \n  per 100 Cells", fontsize=17, color="black")
+        ax.set_ylabel("ng Chlorophyll a \n  per 100 Cells", fontsize=17, color="black")
         # ax.set_title('Tidal Zone on Chlorophyll per Cell', fontsize = 20)
 
     ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
@@ -686,7 +686,7 @@ def spearman_correlation_plot(
     if yvar == "avg_num_cells_per_ug_protein":
         ax.set_ylabel("Avg. Algal Cells/µg Animal Protein\nper Collection", fontsize=12)
     else:
-        ax.set_ylabel("Avg. ng Chl α/µg Animal Protein\nper Collection", fontsize=12)
+        ax.set_ylabel("Avg. ng Chl a/µg Animal Protein\nper Collection", fontsize=12)
 
     stats_text = f"Spearman's $\\rho$: {rho:.3f}\n$p$: {p_val:.3f}\n$n$: {n}"
     ax.text(

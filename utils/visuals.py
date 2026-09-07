@@ -2,7 +2,7 @@
 Visualization utilities for data analysis.
 
 This module provides plotting functions for analyzing and visualizing
-algal density, chlorophyll concentration, and environmental data across
+algal density, chlorophyll a concentration, and environmental data across
 intertidal zones and time periods.
 """
 
@@ -137,11 +137,11 @@ def batch_bar(
         ax.set_title("Average Population Algal Density over Time", fontsize=49)
 
     elif yvar == "ng_chlorophyll_per_ug_protein":
-        ax.set_ylabel("ng Chl α/ug Animal Protein", fontsize=33)
-        ax.set_title("Average Population Chlorophyll α over Time", fontsize=49)
+        ax.set_ylabel("ng Chl a/ug Animal Protein", fontsize=33)
+        ax.set_title("Average Population Chlorophyll a over Time", fontsize=49)
 
     elif yvar == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chlorophyll per 100 Cells", fontsize=25)
+        ax.set_ylabel("ng Chlorophyll a per 100 Cells", fontsize=25)
 
     legend_label = f"Intertidal zone: {zone}" if zone else "All intertidal zones"
     ax.legend([legend_label], loc="upper right", fontsize=30)
@@ -609,12 +609,12 @@ def batch_bar_overlay(
             ax.set_title(title, fontsize=49)
 
     if yvar == "ng_chlorophyll_per_ug_protein":
-        ax.set_ylabel("ng Chl α/ug Animal Protein", fontsize=33)
+        ax.set_ylabel("ng Chl a/ug Animal Protein", fontsize=33)
         if title:
             ax.set_title(title, fontsize=49)
 
     if yvar == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chl α/100 Algae Cells", fontsize=25)
+        ax.set_ylabel("ng Chl a/100 Algae Cells", fontsize=25)
 
     n_value = len(your_data[your_data[yvar].notnull()])
 
@@ -706,7 +706,7 @@ def regression_plot(
     if yvar == "avg_num_cells_per_ug_protein":
         ax.set_ylabel("Avg. Algal Cells/µg Animal Protein\nper Collection", fontsize=12)
     else:
-        ax.set_ylabel("Avg. ng Chl α/µg Animal Protein\nper Collection", fontsize=12)
+        ax.set_ylabel("Avg. ng Chl a/µg Animal Protein\nper Collection", fontsize=12)
 
     # Add stats box
     r2 = model.rsquared
@@ -895,14 +895,14 @@ def intertidal_graph(your_data: pd.DataFrame, yvar: str) -> None:
         ax.set_title("Middle Tidal Zone has \n Highest Algal Density", fontsize=20)
     elif yvar == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel(
-            "ng Chlorophyll \n  per Animal Protein", fontsize=17, color="black"
+            "ng Chlorophyll a \n  per Animal Protein", fontsize=17, color="black"
         )
         ax.set_title(
-            "Middle Tidal Zone has \n Highest Chlorophyll α Production", fontsize=20
+            "Middle Tidal Zone has \n Highest Chlorophyll a Production", fontsize=20
         )
     elif yvar == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chlorophyll \n  per 100 Cells", fontsize=17, color="black")
-        # ax.set_title('Tidal Zone on Chlorophyll per Cell', fontsize = 20)
+        ax.set_ylabel("ng Chlorophyll a \n  per 100 Cells", fontsize=17, color="black")
+        # ax.set_title('Tidal Zone on Chlorophyll a per Cell', fontsize = 20)
 
     ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
 
@@ -946,9 +946,9 @@ def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
     if yvar1 == "num_cells_per_ug_protein":
         label1 = "Algal Density"
     elif yvar1 == "ng_chlorophyll_per_ug_protein":
-        label1 = "Chlorophyll Concentration"
+        label1 = "Chlorophyll a Concentration"
     elif yvar1 == "ng_chlorophyll_per_hundred_cells":
-        label1 = "ng Chlorophyll per 100 Cells"
+        label1 = "ng Chlorophyll a per 100 Cells"
     else:
         label1 = "Algal Density"
 
@@ -984,11 +984,11 @@ def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
         # ax.set_title('Merged algal and Fort Point salinity data overlayed', fontsize=20)
 
     if yvar1 == "ng_chlorophyll_per_ug_protein":
-        ax.set_ylabel("ng Chlorophyll per Animal Protein", fontsize=15)
-        ax.set_title("Chlorophyll α with Fort Point Salinity Overlayed", fontsize=20)
+        ax.set_ylabel("ng Chlorophyll a per Animal Protein", fontsize=15)
+        ax.set_title("Chlorophyll a with Fort Point Salinity Overlayed", fontsize=20)
 
     if yvar1 == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chlorophyll per 100 Cells", fontsize=15)
+        ax.set_ylabel("ng Chlorophyll a per 100 Cells", fontsize=15)
 
     ax2 = ax.twinx()  # to plot a second y axis
     ax2.scatter(your_data2[xvar], your_data2[yvar2], color="orange", label=label2, s=15)
