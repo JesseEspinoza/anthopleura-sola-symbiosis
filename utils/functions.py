@@ -183,7 +183,7 @@ def intertidal_graph(your_data: pd.DataFrame, yvar: str):
 
     if yvar == "num_cells_per_ug_protein":
         ax.set_ylabel("Cells/ug Animal Protein", fontsize=20, color="black")
-        ax.set_title("Middle Tidal Zone has \n Highest Algal Density", fontsize=20)
+        ax.set_title("Middle Tidal Zone has \n Highest Symbiont Density", fontsize=20)
     elif yvar == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel(
             "ng Chlorophyll a \n  per Animal Protein", fontsize=17, color="black"
@@ -294,7 +294,7 @@ def kruskal_drops(your_data: pd.DataFrame, yvar: str, zone: str):
 #
 # The functions below use Generalized Estimating Equations (GEE) with
 # a Gamma family (log link), which is appropriate for the right-skewed,
-# strictly-positive algal density / chlorophyll data, and clusters
+# strictly-positive symbiont density / chlorophyll data, and clusters
 # observations by individual anemone (specimen_id) to account for the
 # repeated-measures structure. This directly replaces kruskal_drops()
 # (pre- vs. post-drop comparison) and the posthoc_dunn() zone
@@ -536,7 +536,7 @@ def gee_pairwise_zone_contrasts(
 
 ########################################################################
 # Spearman correlation for abiotic (temperature/salinity) vs. biotic
-# (algal density/chlorophyll) associations.
+# (symbiont density/chlorophyll) associations.
 #
 # The histograms of our abiotic variables (temperature: multimodal;
 # salinity: strongly left-skewed with a long tail from rain/AR dilution
@@ -684,7 +684,9 @@ def spearman_correlation_plot(
         ax.set_xlabel("Seven Day Avg. Salinity (ppt)", fontsize=12)
 
     if yvar == "avg_num_cells_per_ug_protein":
-        ax.set_ylabel("Avg. Algal Cells/µg Animal Protein\nper Collection", fontsize=12)
+        ax.set_ylabel(
+            "Avg. Symbiont Cells/µg Animal Protein\nper Collection", fontsize=12
+        )
     else:
         ax.set_ylabel("Avg. ng Chl a/µg Animal Protein\nper Collection", fontsize=12)
 
@@ -872,7 +874,7 @@ site_dict = {
         "lat": 37.607919,
         "Location": "Pacifica, San Mateo County, CA",
         "Site Description": "Aramai Point was originally named Rockaway Beach but has since been renamed to honor the Native American tribe that lived in the area for thousands of years. This public beach has hiking trails leading to prominent headlands that overshadow a rocky intertidal habitat below. The intertidal zone is very accessible, beginning a few hundred yards from the parking lot. Anemones, sea stars, tunicates, barnacles, and many other inverts are found throughout this site. Aramai Point is heavily trafficed by surfers, fishermen, and families, especially on the weekends.",
-        "Research Conducted": "Identifying the impact intertidal positioning has on the symbiotic relationship between Anthopleura sola and their algal photosynthesizers.",
+        "Research Conducted": "Identifying the impact intertidal positioning has on the symbiotic relationship between Anthopleura sola and their symbiont photosynthesizers.",
         "Student Researchers": "Jesse Espinoza",
     }
 }

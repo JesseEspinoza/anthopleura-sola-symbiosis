@@ -2,7 +2,7 @@
 Visualization utilities for data analysis.
 
 This module provides plotting functions for analyzing and visualizing
-algal density, chlorophyll a concentration, and environmental data across
+symbiont density, chlorophyll a concentration, and environmental data across
 intertidal zones and time periods.
 """
 
@@ -133,8 +133,8 @@ def batch_bar(
     plt.yticks(fontsize=17)
 
     if yvar == "num_cells_per_ug_protein":
-        ax.set_ylabel("Algal Cells/ug Animal Protein", fontsize=33)
-        ax.set_title("Average Population Algal Density over Time", fontsize=49)
+        ax.set_ylabel("Symbiont Cells/ug Animal Protein", fontsize=33)
+        ax.set_title("Average Population Symbiont Density over Time", fontsize=49)
 
     elif yvar == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel("ng Chl a/ug Animal Protein", fontsize=33)
@@ -218,7 +218,7 @@ def intertidal_box_plot(
 
     box = ax.boxplot(
         data,
-        labels=labels,
+        tick_labels=labels,
         showmeans=True,
         meanprops={"marker": "o", "markerfacecolor": "black"},
         medianprops={"color": "black", "linewidth": 1},
@@ -604,7 +604,7 @@ def batch_bar_overlay(
     plt.yticks(fontsize=17)
 
     if yvar == "num_cells_per_ug_protein":
-        ax.set_ylabel("Algal Cells/ug Animal Protein", fontsize=33)
+        ax.set_ylabel("Symbiont Cells/ug Animal Protein", fontsize=33)
         if title:
             ax.set_title(title, fontsize=49)
 
@@ -614,7 +614,7 @@ def batch_bar_overlay(
             ax.set_title(title, fontsize=49)
 
     if yvar == "ng_chlorophyll_per_hundred_cells":
-        ax.set_ylabel("ng Chl a/100 Algae Cells", fontsize=25)
+        ax.set_ylabel("ng Chl a/100 Symbiont Cells", fontsize=25)
 
     n_value = len(your_data[your_data[yvar].notnull()])
 
@@ -704,7 +704,9 @@ def regression_plot(
         ax.set_xlabel("Seven Day Avg. Salinity (ppt)", fontsize=12)
 
     if yvar == "avg_num_cells_per_ug_protein":
-        ax.set_ylabel("Avg. Algal Cells/µg Animal Protein\nper Collection", fontsize=12)
+        ax.set_ylabel(
+            "Avg. Symbiont Cells/µg Animal Protein\nper Collection", fontsize=12
+        )
     else:
         ax.set_ylabel("Avg. ng Chl a/µg Animal Protein\nper Collection", fontsize=12)
 
@@ -892,7 +894,7 @@ def intertidal_graph(your_data: pd.DataFrame, yvar: str) -> None:
 
     if yvar == "num_cells_per_ug_protein":
         ax.set_ylabel("Cells/ug Animal Protein", fontsize=20, color="black")
-        ax.set_title("Middle Tidal Zone has \n Highest Algal Density", fontsize=20)
+        ax.set_title("Middle Tidal Zone has \n Highest Symbiont Density", fontsize=20)
     elif yvar == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel(
             "ng Chlorophyll a \n  per Animal Protein", fontsize=17, color="black"
@@ -944,13 +946,13 @@ def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
     f, (ax) = plt.subplots(figsize=(12, 3.8))
 
     if yvar1 == "num_cells_per_ug_protein":
-        label1 = "Algal Density"
+        label1 = "Symbiont Density"
     elif yvar1 == "ng_chlorophyll_per_ug_protein":
         label1 = "Chlorophyll a Concentration"
     elif yvar1 == "ng_chlorophyll_per_hundred_cells":
         label1 = "ng Chlorophyll a per 100 Cells"
     else:
-        label1 = "Algal Density"
+        label1 = "Symbiont Density"
 
     if yvar2 == "temp(c)":
         label2 = "Temperature"
@@ -968,7 +970,7 @@ def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
         label=label1,
     )
     # ax.set(xlabel = "Date", ylabel='Num Cells')
-    # ax.set_title('Algal Density and Star Oddi Temp', fontsize =25)
+    # ax.set_title('Symbiont Density and Star Oddi Temp', fontsize =25)
     ax.tick_params(
         axis="x", labelsize=11, rotation=15, labelbottom=True, direction="out", pad=10
     )
@@ -981,7 +983,7 @@ def merged_plot(your_data1, xvar, yvar1, your_data2, yvar2):
 
     if yvar1 == "num_cells_per_ug_protein":
         ax.set_ylabel("Cells/ug Animal Protein", fontsize=15)
-        # ax.set_title('Merged algal and Fort Point salinity data overlayed', fontsize=20)
+        # ax.set_title('Merged symbiont and Fort Point salinity data overlayed', fontsize=20)
 
     if yvar1 == "ng_chlorophyll_per_ug_protein":
         ax.set_ylabel("ng Chlorophyll a per Animal Protein", fontsize=15)
