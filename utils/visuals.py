@@ -462,6 +462,10 @@ def batch_box_plot(
     save_path: Optional[PathLike] = None,
     box_colors: Optional[Union[str, Sequence[str]]] = None,
     legend_loc: Union[str, Tuple[float, float]] = (0.98, 0.98),
+    show_drop_line: bool = False,
+    split_date: str = "2022-11-15",
+    drop_label: Optional[str] = None,
+    drop_label_y: float = 0.04,
     show_ar: bool = False,
     ar_data: Optional[Union[PathLike, pd.DataFrame]] = None,
     ar_color: str = "tab:blue",
@@ -480,6 +484,17 @@ def batch_box_plot(
         location string ("upper left", "lower right", "center", ...) or an
         (x, y) tuple in axes coordinates (0-1) for the box's upper-right
         corner.
+    show_drop_line : bool, default False
+        If True, draw a dashed vertical line at `split_date` with floating
+        text (no box) beside it.
+    split_date : str, default "2022-11-15"
+        Pre/post date for the line, placed by interpolation between
+        collection dates.
+    drop_label : str, optional
+        Text beside the line. Defaults by `yvar`: "Symbiont Drop" for
+        num_cells_per_ug_protein, "Chl a Drop" for chlorophyll variables.
+    drop_label_y : float, default 0.04
+        Vertical position of the text in axes coordinates (0 = bottom).
     show_ar : bool, default False
         If True, shade AR events behind the boxes.
     ar_data : str, pathlib.Path or DataFrame, optional
@@ -555,6 +570,29 @@ def batch_box_plot(
             color=ar_color,
             alpha=ar_alpha,
             label_scale=ar_label_scale,
+        )
+
+    # --- pre/post drop line (optional) ---
+    if show_drop_line and len(batch_dates) >= 2:
+        xp = np.array([pd.Timestamp(d).timestamp() for d in batch_dates])
+        split_x = float(
+            np.interp(pd.Timestamp(split_date).timestamp(), xp, np.arange(len(xp)))
+        )
+        ax.axvline(split_x, color="#999999", linestyle="--", linewidth=1.5, zorder=1)
+        default_labels = {
+            "num_cells_per_ug_protein": "Symbiont Drop",
+        }
+        ax.text(
+            split_x + 0.16,
+            drop_label_y,
+            drop_label or default_labels.get(yvar, "Drop"),
+            transform=ax.get_xaxis_transform(),
+            rotation=-90,
+            ha="right",
+            va="bottom",
+            fontsize=20,
+            color="#666666",
+            zorder=4,
         )
 
     zone_labels = {
