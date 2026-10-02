@@ -10,9 +10,9 @@ intertidal zones and time periods.
 import os
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence, Tuple, Union
-
+from typing import Optional, Sequence, Union, Tuple
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import seaborn as sns
 import statsmodels.api as sm
@@ -348,6 +348,111 @@ def abiotic_plot(
     plt.show()
 
 
+from matplotlib.patches import Patch
+
+# ---------------------------------------------------------------------------
+# New helpers
+# ---------------------------------------------------------------------------
+
+
+def load_ar_events(ar_data: Union[PathLike, pd.DataFrame]) -> pd.DataFrame:
+    """Load the AR catalog (CSV path or DataFrame) and parse its dates.
+
+    Expects the columns Start_Date, End_Date (YYYYMMDDHH) and AR_Scale.
+    Adds datetime columns 'start' and 'end'.
+    """
+    if isinstance(ar_data, pd.DataFrame):
+        df = ar_data.copy()
+    else:
+        df = pd.read_csv(ar_data, dtype={"Start_Date": str, "End_Date": str})
+    df["start"] = pd.to_datetime(df["Start_Date"].astype(str), format="%Y%m%d%H")
+    df["end"] = pd.to_datetime(df["End_Date"].astype(str), format="%Y%m%d%H")
+    return df
+
+
+def add_ar_shading(
+    ax,
+    x_dates: Sequence,
+    ar_data: Union[PathLike, pd.DataFrame],
+    color: str = "tab:blue",
+    alpha: float = 0.2,
+    min_width: float = 0.04,
+    label_scale: bool = False,
+    x_per_day: Optional[float] = None,
+) -> Optional[Patch]:
+    """
+    Shade AR events on an axis whose x positions 0..n-1 correspond to
+    `x_dates` (one date per categorical tick).
+
+    Each AR is centered at its midpoint, interpolated between neighboring
+    collection dates. Its width is proportional to its duration using one
+    uniform scale (`x_per_day`) for all ARs, so equal durations look equal
+    regardless of the gap between nearby collections. By default
+    `x_per_day` is 1 / (median days between collections).
+
+    Parameters
+    ----------
+    x_dates : sequence of date-like
+        Collection dates for x positions 0..n-1 (must be increasing).
+    min_width : float
+        Minimum shaded width in x-axis units so short ARs stay visible.
+    label_scale : bool
+        If True, write the AR scale (1-5) at the top of each band.
+
+    Returns
+    -------
+    A legend handle (Patch), or None if no AR fell within the plotted range.
+    """
+    ar = load_ar_events(ar_data)
+    dates = pd.to_datetime(pd.Series(list(x_dates))).reset_index(drop=True)
+    if len(dates) < 2:
+        return None
+
+    xp = np.array([t.timestamp() for t in dates])
+    if np.any(np.diff(xp) <= 0):
+        raise ValueError("x_dates must be strictly increasing to place AR shading.")
+    fp = np.arange(len(dates))
+
+    # Default scale: one tick spacing = the median gap between collections
+    if x_per_day is None:
+        x_per_day = 1.0 / (np.median(np.diff(xp)) / 86400.0)
+
+    xlim = ax.get_xlim()  # axvspan can change limits; restore afterwards
+    drawn = False
+    for _, row in ar.iterrows():
+        t0, t1 = row["start"].timestamp(), row["end"].timestamp()
+        if t1 < xp[0] or t0 > xp[-1]:
+            continue  # AR is outside the plotted date range
+        # Center: interpolated position of the AR's midpoint between ticks.
+        # Width: uniform scale, so equal durations look equal everywhere.
+        mid = np.interp((t0 + t1) / 2, xp, fp)
+        width = max((t1 - t0) / 86400.0 * x_per_day, min_width)
+        x0, x1 = mid - width / 2, mid + width / 2
+        ax.axvspan(x0, x1, color=color, alpha=alpha, linewidth=0, zorder=0.5)
+        if label_scale and "AR_Scale" in ar.columns:
+            ax.text(
+                (x0 + x1) / 2,
+                0.99,
+                f"AR{int(row['AR_Scale'])}",
+                transform=ax.get_xaxis_transform(),
+                ha="center",
+                va="top",
+                fontsize=12,
+                color=color,
+            )
+        drawn = True
+    ax.set_xlim(xlim)
+
+    if not drawn:
+        return None
+    return Patch(facecolor=color, alpha=max(alpha, 0.3), label="Atmospheric river")
+
+
+# ---------------------------------------------------------------------------
+# Updated functions
+# ---------------------------------------------------------------------------
+
+
 def batch_box_plot(
     your_data: pd.DataFrame,
     yvar: str,
@@ -356,53 +461,40 @@ def batch_box_plot(
     title: Optional[str] = None,
     save_path: Optional[PathLike] = None,
     box_colors: Optional[Union[str, Sequence[str]]] = None,
+    legend_loc: Union[str, Tuple[float, float]] = (0.98, 0.98),
+    show_ar: bool = False,
+    ar_data: Optional[Union[PathLike, pd.DataFrame]] = None,
+    ar_color: str = "tab:blue",
+    ar_alpha: float = 0.2,
+    ar_label_scale: bool = False,
 ) -> None:
     """
     Create grouped box plots for a given variable and intertidal zone.
 
-    This function:
-    - Groups data by collection number
-    - Extracts values for a specified variable
-    - Creates side-by-side box plots across time
-    - Optionally filters by intertidal zone
-    - Annotates the plot with zone and sample size information
-    - Optionally saves the figure to designated path
+    (Original behavior unchanged; see original docstring.)
 
-    Parameters
-    ----------
-    your_data : pandas.DataFrame
-        Input dataframe containing the response variable,
-        'intertidal_zone' column, and 'date_of_collection'.
-    yvar : str
-        Column name in `your_data` containing the values to plot.
-    yaxis : str
-        Label for the y-axis.
-    zone : str or None
-        Intertidal zone to filter by (e.g., 'low', 'mid', 'high').
-        If None, data from all zones are included.
-    title : str, optional
-        Title for the plot.
-    save_path : str or pathlib.Path, optional
-        Base file path (without extension) to save the plot as a PNG.
-        If None, the plot is not saved.
-    box_colors : str or sequence of str, optional
-        Color or colors to use for the box plots. If a single string
-        is provided, the same color is applied to all boxes.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    This function assumes the existence of helper functions:
-    - `group_data(data: pd.DataFrame, batch_size: int)`
-    - `pull_data(data, yvar: str)`
+    New parameters
+    --------------
+    legend_loc : str or (x, y), default (0.98, 0.98)
+        Where the combined zone / n / AR legend box goes. Either a matplotlib
+        location string ("upper left", "lower right", "center", ...) or an
+        (x, y) tuple in axes coordinates (0-1) for the box's upper-right
+        corner.
+    show_ar : bool, default False
+        If True, shade AR events behind the boxes.
+    ar_data : str, pathlib.Path or DataFrame, optional
+        AR catalog CSV (or DataFrame). Required when show_ar is True.
+    ar_color, ar_alpha : styling of the shaded bands.
+    ar_label_scale : bool, default False
+        Label each band with its AR scale.
     """
+    if show_ar and ar_data is None:
+        raise ValueError("show_ar=True requires ar_data (CSV path or DataFrame).")
+
     batch_sizes = range(4, 17)
 
-    valid_batch_sizes = []  # Keep track of valid batch sizes
-    batch_dates = []  # Store the collection dates of batches
+    valid_batch_sizes = []
+    batch_dates = []
 
     selected_data = (
         your_data[your_data["intertidal_zone"] == zone] if zone else your_data
@@ -411,32 +503,28 @@ def batch_box_plot(
     fig, ax = plt.subplots(figsize=(27, 10))
     ax.set_facecolor("white")
 
-    box_data = []  # Store boxplot data for each batch size
+    box_data = []
 
     for size in batch_sizes:
         batch = group_data(selected_data, size)
         if batch.empty:
             print(f"No data found for batch size {size}, skipping...")
-            continue  # Skip this batch size and move to the next
+            continue
         batch_data = pull_data(batch, yvar)
         box_data.append(batch_data)
-        valid_batch_sizes.append(size)  # Store valid batch size
-        batch_dates.append(batch["date_of_collection"].iloc[0])  # Store collection date
+        valid_batch_sizes.append(size)
+        batch_dates.append(batch["date_of_collection"].iloc[0])
 
-    # Ensure single color is used for all boxes if not provided
     if box_colors is None:
-        box_colors = ["#4eb3d3"] * len(
-            box_data
-        )  # Default to a single color (light blue)
-    elif isinstance(box_colors, str):  # If a single color string is provided
-        box_colors = [box_colors] * len(box_data)  # Apply this color to all boxes
-    elif len(box_colors) < len(box_data):  # If there are not enough colors
+        box_colors = ["#4eb3d3"] * len(box_data)
+    elif isinstance(box_colors, str):
+        box_colors = [box_colors] * len(box_data)
+    elif len(box_colors) < len(box_data):
         print("Warning: Not enough colors provided. Using default for missing values.")
-        box_colors.extend(
-            ["lightblue"] * (len(box_data) - len(box_colors))
-        )  # Fill missing colors
+        box_colors = list(box_colors) + ["lightblue"] * (
+            len(box_data) - len(box_colors)
+        )
 
-    # Create individual box plots for each batch size with the same color
     for i, (data, color) in enumerate(zip(box_data, box_colors)):
         ax.boxplot(
             data,
@@ -457,7 +545,18 @@ def batch_box_plot(
     if title:
         ax.set_title(title, fontsize=49, pad=10)
 
-    # Create legend with zone and sample size information
+    # --- AR shading (optional) ---
+    ar_handle = None
+    if show_ar:
+        ar_handle = add_ar_shading(
+            ax,
+            batch_dates,
+            ar_data,
+            color=ar_color,
+            alpha=ar_alpha,
+            label_scale=ar_label_scale,
+        )
+
     zone_labels = {
         "low": "Lower Tidal Zone",
         "mid": "Middle Tidal Zone",
@@ -472,23 +571,44 @@ def batch_box_plot(
     n_samples = len(selected_data)
     legend_text = f"{zone_text}\nn = {n_samples}"
 
-    # Add legend to the plot with centered alignment
-    ax.text(
-        0.98,
-        0.98,
-        legend_text,
-        transform=ax.transAxes,
-        fontsize=20,
-        verticalalignment="top",
-        horizontalalignment="right",
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor="black", alpha=0.8),
-        multialignment="center",
-    )
+    if ar_handle is not None:
+        # One legend box: zone / n as the title, AR swatch as the entry
+        if isinstance(legend_loc, str):
+            loc_kwargs = dict(loc=legend_loc)
+        else:
+            loc_kwargs = dict(loc="upper right", bbox_to_anchor=legend_loc)
+        leg = ax.legend(
+            handles=[ar_handle],
+            title=legend_text,
+            fontsize=20,
+            title_fontsize=20,
+            fancybox=True,
+            facecolor="white",
+            edgecolor="black",
+            framealpha=0.8,
+            **loc_kwargs,
+        )
+        leg.get_title().set_multialignment("center")
+    else:
+        # No AR shown: original text box
+        xy = (0.98, 0.98) if isinstance(legend_loc, str) else legend_loc
+        ax.text(
+            xy[0],
+            xy[1],
+            legend_text,
+            transform=ax.transAxes,
+            fontsize=20,
+            verticalalignment="top",
+            horizontalalignment="right",
+            bbox=dict(
+                boxstyle="round", facecolor="white", edgecolor="black", alpha=0.8
+            ),
+            multialignment="center",
+        )
 
-    # Save plot
     if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure folder exists
-        full_save_path = f"{save_path}.png"  # Append file format
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        full_save_path = f"{save_path}.png"
         plt.savefig(full_save_path, bbox_inches="tight", dpi=300)
         print(f"Plot saved to {full_save_path}")
 
@@ -501,41 +621,30 @@ def batch_bar_overlay(
     save_path: Optional[PathLike] = None,
     colors: Sequence[str] = ("orange", "wheat", "red"),
     title: Optional[str] = None,
+    show_ar: bool = False,
+    ar_data: Optional[Union[PathLike, pd.DataFrame]] = None,
+    ar_color: str = "tab:blue",
+    ar_alpha: float = 0.2,
+    ar_label_scale: bool = False,
 ) -> None:
     """
     Create a grouped bar plot with error bars for intertidal zone batch statistics.
 
-    This function:
-        - Groups data by collection group and intertidal zone
-        - Computes mean, standard deviation, and standard error of the mean (SEM)
-        - Overlays grouped bars by intertidal zone with SEM error bars
-        - Optionally saves the resulting figure
+    (Original behavior unchanged; see original docstring.)
 
-    Parameters
-    ----------
-    your_data : pandas.DataFrame
-        Input dataframe containing the response variable and an
-        'intertidal_zone' column.
-    yvar : str
-        Name of the column in `your_data` to analyze and plot.
-    save_path : str or pathlib.Path, optional
-        File path to save the generated plot. If None, the plot is not saved.
-    colors : sequence of str, default ("orange", "wheat", "red")
-        Bar colors corresponding to the intertidal zones
-        ['low', 'middle', 'high'].
-    title : str, optional
-        Title to apply to the plot (used for selected y-variables).
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    This function assumes the existence of helper functions:
-    - `group_data(data: pd.DataFrame, batch_size: int)`
-    - `pull_data(data, yvar: str)`
+    New parameters
+    --------------
+    show_ar : bool, default False
+        If True, shade AR events behind the bars.
+    ar_data : str, pathlib.Path or DataFrame, optional
+        AR catalog CSV (or DataFrame). Required when show_ar is True.
+    ar_color, ar_alpha : styling of the shaded bands.
+    ar_label_scale : bool, default False
+        Label each band with its AR scale.
     """
+    if show_ar and ar_data is None:
+        raise ValueError("show_ar=True requires ar_data (CSV path or DataFrame).")
+
     labels = [
         "2022-08-27",
         "2022-09-06",
@@ -623,12 +732,296 @@ def batch_bar_overlay(
         for zone in selected_zones
     ]
 
+    # --- AR shading (optional) ---
+    if show_ar:
+        ar_handle = add_ar_shading(
+            ax,
+            labels,
+            ar_data,
+            color=ar_color,
+            alpha=ar_alpha,
+            label_scale=ar_label_scale,
+        )
+        if ar_handle is not None:
+            handles.append(ar_handle)
+            legend_labels.append(ar_handle.get_label())
+
     ax.legend(handles, legend_labels, loc="upper right", fontsize=20)
 
     ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
 
     if save_path:
         plt.savefig(save_path, bbox_inches="tight", dpi=300)
+        print(f"Plot saved to {save_path}")
+
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Line-plot version of batch_bar_overlay
+# ---------------------------------------------------------------------------
+
+# Pre/post (mid-November) % change in mean, from the GEE table.
+PRE_POST_PCT_CHANGE = {
+    "num_cells_per_ug_protein": {  # Symbiont density
+        "all": -50.6,
+        "low": -49.3,
+        "middle": -51.8,
+        "high": -44.8,
+    },
+    "ng_chlorophyll_per_ug_protein": {  # Chl a concentration
+        "all": -58.1,
+        "low": -59.7,
+        "middle": -55.5,
+        "high": -63.2,
+    },
+}
+
+
+def batch_line_plot(
+    your_data: pd.DataFrame,
+    yvar: str,
+    save_path: Optional[PathLike] = None,
+    colors: Sequence[str] = ("#8fd0a8", "#3fb6cc", "#1b3a6b"),
+    title: Optional[str] = None,
+    # AR shading
+    show_ar: bool = False,
+    ar_data: Optional[Union[PathLike, pd.DataFrame]] = None,
+    ar_color: str = "#a020a0",
+    ar_alpha: float = 0.3,
+    ar_label_scale: bool = False,
+    # pre/post split + annotations
+    split_date: Optional[str] = "2022-11-15",
+    pct_change: Optional[dict] = None,
+    pct_box_title: str = "Avg % change between\npre- and post-drop periods",
+    shift_legend=[0.1, 0.97],
+    footnote: Optional[str] = (
+        "All pre/post zone contrasts significant at p < 0.001 (GEE, Holm-adjusted)"
+    ),
+    # look
+    show_sem: bool = False,
+    short_labels: bool = True,
+    legend_loc: Union[str, Tuple[float, float]] = "below",
+    bg_color: str = "#fafaf7",
+    figsize: Tuple[float, float] = (27, 10),
+) -> None:
+    """
+    Line-plot version of `batch_bar_overlay`: one line per intertidal zone
+    across collection dates, with an optional dashed pre/post split, per-zone
+    % change annotations, and AR shading.
+
+    Parameters
+    ----------
+    your_data, yvar, save_path, colors, title :
+        As in `batch_bar_overlay` (colors are for low, middle, high).
+    show_ar, ar_data, ar_color, ar_alpha, ar_label_scale :
+        AR shading options, as in `batch_box_plot`.
+    split_date : str or None
+        Date of the dashed pre/post line (placed between collection dates by
+        interpolation). None hides the line and the annotations.
+    pct_change : dict, optional
+        {"low": -49.3, "middle": -51.8, "high": -44.8}. Defaults to the
+        values in PRE_POST_PCT_CHANGE for `yvar`, if any.
+    pct_box_title : str
+        Title of the boxed % change legend next to the dashed line.
+    footnote : str or None
+        Small text under the legend (only shown when annotations are shown).
+    show_sem : bool
+        Add SEM error bars.
+    short_labels : bool
+        Use MM-DD x tick labels instead of full dates.
+    legend_loc : "below", a matplotlib loc string, or (x, y) axes coords
+        "below" puts a horizontal legend under the axis, left-aligned.
+    """
+    if show_ar and ar_data is None:
+        raise ValueError("show_ar=True requires ar_data (CSV path or DataFrame).")
+
+    labels = [
+        "2022-08-27",
+        "2022-09-06",
+        "2022-09-23",
+        "2022-10-10",
+        "2022-10-27",
+        "2022-11-08",
+        "2022-11-23",
+        "2022-12-06",
+        "2023-01-06",
+        "2023-01-23",
+        "2023-02-06",
+        "2023-02-18",
+        "2023-03-17",
+    ]
+    batch_sizes = range(4, 17)
+    selected_zones = ["low", "middle", "high"]
+
+    means, sems_ = {}, {}
+    for zone in selected_zones:
+        zone_data = your_data[your_data["intertidal_zone"] == zone]
+        z_means, z_sems = [], []
+        for size in batch_sizes:
+            batch = pull_data(group_data(zone_data, size), yvar)
+            z_means.append(np.mean(batch))
+            z_sems.append(sem(batch))
+        means[zone], sems_[zone] = np.array(z_means), np.array(z_sems)
+
+    x_pos = np.arange(len(labels))
+    grey = "#555555"
+
+    fig, ax = plt.subplots(figsize=figsize)
+    fig.patch.set_facecolor(bg_color)
+    ax.set_facecolor(bg_color)
+
+    # --- lines ---
+    handles, legend_labels = [], []
+    for zone, color in zip(selected_zones, colors):
+        (line,) = ax.plot(
+            x_pos,
+            means[zone],
+            color=color,
+            linewidth=3.5,
+            marker="o",
+            markersize=11,
+            zorder=3,
+        )
+        if show_sem:
+            ax.errorbar(
+                x_pos,
+                means[zone],
+                yerr=sems_[zone],
+                fmt="none",
+                ecolor=color,
+                elinewidth=1.5,
+                capsize=4,
+                alpha=0.7,
+                zorder=2,
+            )
+        n_zone = len(your_data[your_data["intertidal_zone"] == zone])
+        handles.append(line)
+        legend_labels.append(f"{zone.title()} zone (n={n_zone})")
+
+    # --- styling (flat, light grid, no frame) ---
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_axisbelow(True)
+    ax.grid(axis="y", color="#000000", linestyle="--", linewidth=0.25, zorder=0)
+    ax.tick_params(axis="both", length=0, colors=grey)
+    ax.set_xticks(x_pos)
+    tick_labels = [d[5:] for d in labels] if short_labels else labels
+    ax.set_xticklabels(
+        tick_labels,
+        fontsize=17,
+        rotation=0 if short_labels else 28,
+        color=grey,
+    )
+    ax.tick_params(axis="y", labelsize=17)
+    ax.set_xlim(-0.5, len(labels) - 0.5)
+    ax.set_ylim(bottom=0)
+
+    ylabels = {
+        "num_cells_per_ug_protein": "Symbiont Cells/ug Animal Protein",
+        "ng_chlorophyll_per_ug_protein": "ng Chl a/ug Animal Protein",
+        "ng_chlorophyll_per_hundred_cells": "ng Chl a/100 Symbiont Cells",
+    }
+    ax.set_ylabel(ylabels.get(yvar, yvar), fontsize=30, color=grey, labelpad=15)
+    if title:
+        ax.set_title(title, fontsize=49, pad=10, color="black")
+
+    # --- AR shading ---
+    if show_ar:
+        ar_handle = add_ar_shading(
+            ax,
+            labels,
+            ar_data,
+            color=ar_color,
+            alpha=ar_alpha,
+            label_scale=ar_label_scale,
+        )
+        if ar_handle is not None:
+            handles.append(ar_handle)
+            legend_labels.append(ar_handle.get_label())
+
+    # --- dashed pre/post split + % change annotations ---
+    pcts = pct_change if pct_change is not None else PRE_POST_PCT_CHANGE.get(yvar)
+    if split_date is not None:
+        xp = np.array([pd.Timestamp(d).timestamp() for d in labels])
+        split_x = float(np.interp(pd.Timestamp(split_date).timestamp(), xp, x_pos))
+        ax.axvline(split_x, color="#999999", linestyle="--", linewidth=1.5, zorder=1)
+
+        if pcts:
+            zone_color = dict(zip(selected_zones, colors))
+            short_name = {"low": "low", "middle": "mid", "high": "high"}
+            ordered = sorted(
+                [z for z in selected_zones if z in pcts], key=lambda z: pcts[z]
+            )
+            blank = [Line2D([], [], alpha=0) for _ in ordered]
+            texts = [
+                f"{short_name[z]} {pcts[z]:.0f}%".replace("-", "\u2212")
+                for z in ordered
+            ]
+            pct_leg = ax.legend(
+                blank,
+                texts,
+                title=pct_box_title,
+                loc="upper left",
+                bbox_to_anchor=(split_x + shift_legend[0], shift_legend[1]),
+                bbox_transform=ax.get_xaxis_transform(),
+                handlelength=0,
+                handletextpad=0,
+                fontsize=18,
+                title_fontsize=15,
+                fancybox=True,
+                facecolor="white",
+                edgecolor="black",
+                framealpha=0.8,
+            )
+            for t, z in zip(pct_leg.get_texts(), ordered):
+                t.set_color(zone_color[z])
+                t.set_fontweight("bold")
+            pct_leg.get_title().set_multialignment("center")
+            ax.add_artist(pct_leg)  # keep it when the main legend is drawn
+
+    # --- legend (+ footnote) ---
+    if legend_loc == "below":
+        y_off = 0.0 if short_labels else -0.06
+        ax.legend(
+            handles,
+            legend_labels,
+            loc="upper left",
+            bbox_to_anchor=(0.0, -0.08 + y_off),
+            ncol=len(handles),
+            frameon=False,
+            fontsize=20,
+        )
+        note_xy = (0.0, -0.16 + y_off)
+    else:
+        if isinstance(legend_loc, str):
+            ax.legend(handles, legend_labels, loc=legend_loc, fontsize=20)
+        else:
+            ax.legend(
+                handles,
+                legend_labels,
+                loc="upper right",
+                bbox_to_anchor=legend_loc,
+                fontsize=20,
+            )
+        note_xy = (0.0, -0.08)
+
+    if footnote and pcts and split_date is not None:
+        ax.text(
+            note_xy[0],
+            note_xy[1],
+            footnote,
+            transform=ax.transAxes,
+            fontsize=15,
+            color="#777777",
+            va="top",
+            ha="left",
+        )
+
+    if save_path:
+        plt.savefig(
+            save_path, bbox_inches="tight", dpi=300, facecolor=fig.get_facecolor()
+        )
         print(f"Plot saved to {save_path}")
 
     plt.show()
