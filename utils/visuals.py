@@ -18,6 +18,7 @@ import seaborn as sns
 import statsmodels.api as sm
 from PIL import Image, ImageChops, ImageOps
 from scipy import stats
+from matplotlib.transforms import ScaledTranslation
 
 PathLike = Union[str, Path]
 
@@ -274,6 +275,17 @@ def abiotic_plot(
     ylim: tuple = None,
     title: str = None,
     save_path: str = None,
+    show_drop_line: bool = False,
+    split_date: str = "2022-11-15",
+    drop_label: str = "Symbiont Drop",
+    drop_label_y: float = 0.04,
+    drop_label_fontsize: Optional[float] = None,
+    month_ticks: bool = True,
+    date_format: str = "%b %Y",
+    edge_buffer_days: float = 5,
+    edge_label_pad: float = 3,
+    rain_color: str = "orange",
+    rain_alpha: float = 1.0,
 ):
     """
     Function to create and save line or scatter plots with customization options.
@@ -294,6 +306,37 @@ def abiotic_plot(
         Y-axis limits.
     save_path (str, optional):
         File path to save the figure.
+    show_drop_line (bool, default False):
+        Draw a dashed vertical line at `split_date` with floating text
+        (no box) beside it.
+    split_date (str, default "2022-11-15"):
+        Date of the line. The x-axis is a true date axis here, so no
+        interpolation is needed.
+    drop_label (str, default "Symbiont Drop"):
+        Text beside the line.
+    drop_label_y (float, default 0.04):
+        Vertical position of the text in axes coordinates (0 = bottom).
+        Values above 0.5 anchor the text from the top down instead.
+    drop_label_fontsize (float, optional):
+        Defaults to 16 for line plots and 12 for scatter plots.
+    month_ticks (bool, default True):
+        Put x ticks on the 1st of each month so "%Y-%m" labels mean what
+        they say. False restores the original ticks every 4 weeks (on
+        Mondays), where a "2022-11" label can sit on Nov 14.
+    date_format (str, default "%b %Y"):
+        strftime format for the x tick labels (e.g. "%Y-%m" for 2022-11).
+    edge_buffer_days (float, default 5):
+        With month_ticks, a label whose tick is within this many days of
+        an axis end is left/right-aligned so it sits inside the axis
+        instead of being centered on the axis line. Use 0 to disable.
+        The tick mark at the axis end is hidden (it duplicates the axis line).
+    edge_label_pad (float, default 3):
+        Points to nudge those edge labels inward, which keeps the first x
+        label from crowding the y-axis tick label at the corner.
+    rain_color (str, default "orange"):
+        Color of the rainfall bars (only used when "rain" is in data_dict).
+    rain_alpha (float, default 1.0):
+        Opacity of the rainfall bars.
     """
     fig, ax = plt.subplots(figsize=(14, 7) if plot_type == "line" else (12, 3.8))
 
@@ -308,9 +351,13 @@ def abiotic_plot(
 
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=4))
-    ax.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
     ax.set_xlim(xlim)
+    if month_ticks:
+        # a tick on the 1st of every month: the label is that month's start
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+    else:
+        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=4))
+    ax.xaxis.set_major_formatter(DateFormatter(date_format))
 
     if ylim:
         ax.set_ylim(ylim)
@@ -318,6 +365,52 @@ def abiotic_plot(
     ax.tick_params(axis="x", labelsize=12, rotation=0, labelbottom=True)
     ax.tick_params(axis="y", labelsize=12)
     ax.grid(plot_type == "scatter")
+    ax.tick_params(axis="x", which="major", length=6)
+
+    # Keep labels near the axis ends inside the axis (not centered on it)
+    if month_ticks and edge_buffer_days > 0:
+        lo, hi = ax.get_xlim()
+        for loc, lab, tick in zip(
+            ax.get_xticks(), ax.get_xticklabels(), ax.xaxis.get_major_ticks()
+        ):
+            if lo <= loc < lo + edge_buffer_days:
+                side = 1
+                lab.set_ha("left")
+            elif hi - edge_buffer_days < loc <= hi:
+                side = -1
+                lab.set_ha("right")
+            else:
+                continue
+            tick.tick1line.set_visible(False)  # tick mark would sit on the axis line
+            lab.set_transform(
+                lab.get_transform()
+                + ScaledTranslation(side * edge_label_pad / 72, 0, fig.dpi_scale_trans)
+            )
+
+    # --- pre/post drop line (optional) ---
+    if show_drop_line:
+        split_ts = pd.Timestamp(split_date)
+        split_num = mdates.date2num(split_ts)  # annotate needs a plain number
+        lo, hi = ax.get_xlim()
+        if lo <= split_num <= hi:
+            ax.axvline(
+                split_ts, color="#999999", linestyle="--", linewidth=1.5, zorder=2
+            )
+            ax.annotate(
+                drop_label,
+                xy=(split_num, drop_label_y),
+                xycoords=ax.get_xaxis_transform(),  # x in data, y in axes fraction
+                xytext=(6, 0),  # nudge right of the line (points)
+                textcoords="offset points",
+                rotation=-90,
+                ha="left",
+                va="top" if drop_label_y > 0.5 else "bottom",
+                fontsize=drop_label_fontsize or (16 if plot_type == "line" else 12),
+                color="#666666",
+                zorder=4,
+            )
+        else:
+            print(f"split_date {split_date} is outside xlim; drop line not drawn.")
 
     # Add twin axis if rain data is provided
     if "rain" in data_dict:
@@ -326,7 +419,8 @@ def abiotic_plot(
             data_dict["rain"][0],
             data_dict["rain"][1],
             width=1.3,
-            color="orange",
+            color=rain_color,
+            alpha=rain_alpha,
             label="Rainfall",
         )
         ax2.set_ylabel("Rainfall (mm)", fontsize=12, rotation=270, va="bottom")
@@ -453,6 +547,25 @@ def add_ar_shading(
 # ---------------------------------------------------------------------------
 
 
+# Collection date for each batch size (position on the x-axis). Used to label
+# batches that have no data in the selected subset, so they show as empty.
+BATCH_DATES = {
+    4: "2022-08-27",
+    5: "2022-09-06",
+    6: "2022-09-23",
+    7: "2022-10-10",
+    8: "2022-10-27",
+    9: "2022-11-08",
+    10: "2022-11-23",
+    11: "2022-12-06",
+    12: "2023-01-06",
+    13: "2023-01-23",
+    14: "2023-02-06",
+    15: "2023-02-18",
+    16: "2023-03-17",
+}
+
+
 def batch_box_plot(
     your_data: pd.DataFrame,
     yvar: str,
@@ -476,6 +589,10 @@ def batch_box_plot(
     Create grouped box plots for a given variable and intertidal zone.
 
     (Original behavior unchanged; see original docstring.)
+
+    Batches with no data (e.g. a zone that wasn't sampled on a date) are
+    left as empty positions on the x-axis, labeled with the date from
+    BATCH_DATES, so every plot has the same 13 slots.
 
     New parameters
     --------------
@@ -508,9 +625,6 @@ def batch_box_plot(
 
     batch_sizes = range(4, 17)
 
-    valid_batch_sizes = []
-    batch_dates = []
-
     selected_data = (
         your_data[your_data["intertidal_zone"] == zone] if zone else your_data
     )
@@ -518,43 +632,45 @@ def batch_box_plot(
     fig, ax = plt.subplots(figsize=(27, 10))
     ax.set_facecolor("white")
 
-    box_data = []
+    box_data = {}  # x position -> values (only for batches that have data)
+    batch_dates = []  # one date per x position, including empty batches
 
-    for size in batch_sizes:
+    for pos, size in enumerate(batch_sizes):
         batch = group_data(selected_data, size)
         if batch.empty:
-            print(f"No data found for batch size {size}, skipping...")
+            print(f"No data found for batch size {size}; leaving it empty.")
+            batch_dates.append(BATCH_DATES[size])
             continue
-        batch_data = pull_data(batch, yvar)
-        box_data.append(batch_data)
-        valid_batch_sizes.append(size)
-        batch_dates.append(batch["date_of_collection"].iloc[0])
-
-    if box_colors is None:
-        box_colors = ["#4eb3d3"] * len(box_data)
-    elif isinstance(box_colors, str):
-        box_colors = [box_colors] * len(box_data)
-    elif len(box_colors) < len(box_data):
-        print("Warning: Not enough colors provided. Using default for missing values.")
-        box_colors = list(box_colors) + ["lightblue"] * (
-            len(box_data) - len(box_colors)
+        box_data[pos] = pull_data(batch, yvar)
+        batch_dates.append(
+            pd.Timestamp(batch["date_of_collection"].iloc[0]).strftime("%Y-%m-%d")
         )
 
-    for i, (data, color) in enumerate(zip(box_data, box_colors)):
+    n_slots = len(batch_dates)
+    if box_colors is None:
+        box_colors = ["#4eb3d3"] * n_slots
+    elif isinstance(box_colors, str):
+        box_colors = [box_colors] * n_slots
+    elif len(box_colors) < n_slots:
+        print("Warning: Not enough colors provided. Using default for missing values.")
+        box_colors = list(box_colors) + ["lightblue"] * (n_slots - len(box_colors))
+
+    for pos, data in box_data.items():
         ax.boxplot(
             data,
-            positions=[i],
+            positions=[pos],
             patch_artist=True,
             showfliers=False,
             widths=0.5,
-            boxprops=dict(facecolor=color),
+            boxprops=dict(facecolor=box_colors[pos]),
             medianprops={"color": "black"},
         )
 
     ax.set_xlabel("Collection Date", fontsize=25, color="black", labelpad=15)
     ax.set_ylabel(yaxis, fontsize=33, color="black", labelpad=15)
-    ax.set_xticks(np.arange(len(box_data)))
+    ax.set_xticks(np.arange(n_slots))
     ax.set_xticklabels(batch_dates, fontsize=17, rotation=22, ha="right", color="black")
+    ax.set_xlim(-0.5, n_slots - 0.5)  # keep empty slots at the edges visible
     ax.tick_params(axis="y", colors="black")
     plt.yticks(fontsize=17)
     if title:
@@ -786,7 +902,7 @@ def batch_bar_overlay(
 
     ax.legend(handles, legend_labels, loc="upper right", fontsize=20)
 
-    ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5)
+    ax.grid(axis="y", color="black", linestyle="--", linewidth=0.5, alpha=0.5)
 
     if save_path:
         plt.savefig(save_path, bbox_inches="tight", dpi=300)
@@ -830,17 +946,20 @@ def batch_line_plot(
     ar_label_scale: bool = False,
     # pre/post split + annotations
     split_date: Optional[str] = "2022-11-15",
+    show_drop_line: bool = True,
+    drop_label: Optional[str] = None,
+    drop_label_y: float = 0.04,
     pct_change: Optional[dict] = None,
     pct_box_title: str = "Avg % change between\npre- and post-drop periods",
-    shift_legend=[0.1, 0.97],
     footnote: Optional[str] = (
         "All pre/post zone contrasts significant at p < 0.001 (GEE, Holm-adjusted)"
     ),
+    pct_box_loc: Tuple[float, float] = (0.98, 0.98),
     # look
     show_sem: bool = False,
-    short_labels: bool = True,
+    short_labels: bool = False,
     legend_loc: Union[str, Tuple[float, float]] = "below",
-    bg_color: str = "#fafaf7",
+    bg_color: str = "white",
     figsize: Tuple[float, float] = (27, 10),
 ) -> None:
     """
@@ -857,6 +976,17 @@ def batch_line_plot(
     split_date : str or None
         Date of the dashed pre/post line (placed between collection dates by
         interpolation). None hides the line and the annotations.
+    show_drop_line : bool, default True
+        Draw the dashed vertical line at `split_date` with floating text
+        beside it (no box). Turn off to hide both; the % change box (which
+        also needs `split_date`) is unaffected.
+    drop_label : str, optional
+        Text beside the line. Defaults by `yvar`: "Symbiont Drop" for
+        num_cells_per_ug_protein, "Chl a Drop" for the chlorophyll
+        variables.
+    drop_label_y : float
+        Vertical position of the text in axes coordinates (0 = bottom);
+        it is drawn rotated along the left side of the line.
     pct_change : dict, optional
         {"low": -49.3, "middle": -51.8, "high": -44.8}. Defaults to the
         values in PRE_POST_PCT_CHANGE for `yvar`, if any.
@@ -866,8 +996,9 @@ def batch_line_plot(
         Small text under the legend (only shown when annotations are shown).
     show_sem : bool
         Add SEM error bars.
-    short_labels : bool
-        Use MM-DD x tick labels instead of full dates.
+    short_labels : bool, default False
+        False: full YYYY-MM-DD labels, rotated, like batch_box_plot.
+        True: short MM-DD labels (no year), horizontal.
     legend_loc : "below", a matplotlib loc string, or (x, y) axes coords
         "below" puts a horizontal legend under the axis, left-aligned.
     """
@@ -903,7 +1034,7 @@ def batch_line_plot(
         means[zone], sems_[zone] = np.array(z_means), np.array(z_sems)
 
     x_pos = np.arange(len(labels))
-    grey = "#555555"
+    grey = "black"  # text/tick color, matching batch_box_plot
 
     fig, ax = plt.subplots(figsize=figsize)
     fig.patch.set_facecolor(bg_color)
@@ -937,20 +1068,23 @@ def batch_line_plot(
         handles.append(line)
         legend_labels.append(f"{zone.title()} zone (n={n_zone})")
 
-    # --- styling (flat, light grid, no frame) ---
+    # --- styling (matches batch_box_plot: black frame, ticks, big labels) ---
     for spine in ax.spines.values():
-        spine.set_visible(False)
+        spine.set_visible(True)
+        spine.set_color("black")
     ax.set_axisbelow(True)
-    ax.grid(axis="y", color="#000000", linestyle="--", linewidth=0.25, zorder=0)
-    ax.tick_params(axis="both", length=0, colors=grey)
+    # ax.grid(axis="y", linestyle="--", color="#000000", linewidth=0.5, alpha=0.5, zorder=1)
+    ax.tick_params(axis="both", colors=grey, length=5)
     ax.set_xticks(x_pos)
     tick_labels = [d[5:] for d in labels] if short_labels else labels
     ax.set_xticklabels(
         tick_labels,
         fontsize=17,
-        rotation=0 if short_labels else 28,
         color=grey,
+        rotation=0 if short_labels else 22,
+        ha="center" if short_labels else "right",
     )
+    ax.set_xlabel("Collection Date", fontsize=25, color=grey, labelpad=15)
     ax.tick_params(axis="y", labelsize=17)
     ax.set_xlim(-0.5, len(labels) - 0.5)
     ax.set_ylim(bottom=0)
@@ -960,7 +1094,7 @@ def batch_line_plot(
         "ng_chlorophyll_per_ug_protein": "ng Chl a/ug Animal Protein",
         "ng_chlorophyll_per_hundred_cells": "ng Chl a/100 Symbiont Cells",
     }
-    ax.set_ylabel(ylabels.get(yvar, yvar), fontsize=30, color=grey, labelpad=15)
+    ax.set_ylabel(ylabels.get(yvar, yvar), fontsize=33, color=grey, labelpad=15)
     if title:
         ax.set_title(title, fontsize=49, pad=10, color="black")
 
@@ -983,7 +1117,28 @@ def batch_line_plot(
     if split_date is not None:
         xp = np.array([pd.Timestamp(d).timestamp() for d in labels])
         split_x = float(np.interp(pd.Timestamp(split_date).timestamp(), xp, x_pos))
-        ax.axvline(split_x, color="#999999", linestyle="--", linewidth=1.5, zorder=1)
+        if show_drop_line:
+            ax.axvline(
+                split_x, color="#999999", linestyle="--", linewidth=1.5, zorder=1
+            )
+            default_labels = {
+                "num_cells_per_ug_protein": "Symbiont Drop",
+                "ng_chlorophyll_per_ug_protein": "Chl a Drop",
+                "ng_chlorophyll_per_hundred_cells": "Chl a Drop",
+            }
+            label = drop_label or default_labels.get(yvar, "Drop")
+            ax.text(
+                split_x - 0.08,
+                drop_label_y,
+                label,
+                transform=ax.get_xaxis_transform(),
+                rotation=90,
+                ha="right",
+                va="bottom",
+                fontsize=20,
+                color="#666666",
+                zorder=4,
+            )
 
         if pcts:
             zone_color = dict(zip(selected_zones, colors))
@@ -1001,7 +1156,7 @@ def batch_line_plot(
                 texts,
                 title=pct_box_title,
                 loc="upper left",
-                bbox_to_anchor=(split_x + shift_legend[0], shift_legend[1]),
+                bbox_to_anchor=(split_x + pct_box_loc[0], pct_box_loc[1]),
                 bbox_transform=ax.get_xaxis_transform(),
                 handlelength=0,
                 handletextpad=0,
@@ -1020,17 +1175,18 @@ def batch_line_plot(
 
     # --- legend (+ footnote) ---
     if legend_loc == "below":
-        y_off = 0.0 if short_labels else -0.06
+        # sits below the tick labels and the "Collection Date" x label
+        legend_y = -0.17 if short_labels else -0.23
         ax.legend(
             handles,
             legend_labels,
             loc="upper left",
-            bbox_to_anchor=(0.0, -0.08 + y_off),
+            bbox_to_anchor=(0.0, legend_y),
             ncol=len(handles),
             frameon=False,
             fontsize=20,
         )
-        note_xy = (0.0, -0.16 + y_off)
+        note_xy = (0.0, legend_y - 0.08)
     else:
         if isinstance(legend_loc, str):
             ax.legend(handles, legend_labels, loc=legend_loc, fontsize=20)
