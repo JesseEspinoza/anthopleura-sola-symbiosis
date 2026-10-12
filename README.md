@@ -1,7 +1,7 @@
 # Effects of Seasonality, Atmospheric Rivers, and Tidal Zonation on *Breviolum muscatinei* Symbiosis in *Anthopleura sola*
-An analysis on a population of solitary anemones, measuring the health and status of their symbiotic relationship with brown alga *Breviolum muscatinei* under the backdrop of seasonal changes and multiple, distinct atmospheric rivers  
+An analysis on a population of solitary anemones, measuring the health and status of their symbiotic relationship with dinoflagellate *Breviolum muscatinei* under the backdrop of seasonal changes and multiple, distinct atmospheric rivers  
 
-**Motivation**: Study how the symbiotic relation between the starburst anemone and its brown algae varies within a population and within individuals over seasonal changes.
+**Motivation**: Study how the symbiotic relation between the starburst anemone and its symbionts varies within a population over seasonal changes.
 
 **Author**: Jesse Espinoza
 
@@ -13,7 +13,7 @@ An analysis on a population of solitary anemones, measuring the health and statu
 anthopleura-sola-symbiosis/
 ├── abiotic_data/      # Cleaned temperature and salinity data from both on and off site loggers
                        # Also includes cleaned terrestrial precipitation data
-├── biotic_data/       # Processed symbiotic dependent variables (algal density, chlorophyll concentration)
+├── biotic_data/       # Processed symbiotic dependent variables (symbiont density, chlorophyll concentration)
 ├── figures/           # Figures at various stages (pre/post annotations and final formatted TIFF figures)
 ├── notebooks/         # Jupyter notebooks for abiotic/biotic analyses and visualizations
 ├── utils/             # Python modules containing functions used in the analysis and visualizations
@@ -83,7 +83,7 @@ Or from VS Code, select the `asola-analysis` kernel when opening any `.ipynb` fi
 
 This analysis examines *Anthopleura sola* (starburst anemone) populations and their symbiotic relationship with *Breviolum muscatinei* (brown algae). Key measurements include:
 
-- **Symbiont Density**: Quantification of algal cells within anemone tissue
+- **Symbiont Density**: Quantification of symbiont cells within anemone tissue
 - **Chlorophyll Concentration**: Assessment of photosynthetic capacity
 - **Temporal Variation**: Changes across seasons and atmospheric river events
 - **Environmental Factors**: Temperature, salinity, and precipitation data
